@@ -4,8 +4,8 @@
 
 Use following steps to try the application:
 
-* Follow instructions from [custom_tools.md](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/custom_tools.md) to make sure `kasane` binary is available in `argocd-repo-server` pod.
-* Register `kasane` plugin `argocd-cm` ConfigMap:
+* Follow instructions from [custom_tools.md](https://github.com/harnessproj/harness-cd/blob/master/docs/operator-manual/custom_tools.md) to make sure `kasane` binary is available in `harnesscd-repo-server` pod.
+* Register `kasane` plugin `harnesscd-cm` ConfigMap:
 
 ```yaml
 apiVersion: v1
@@ -20,9 +20,9 @@ data:
 * Create application using `kasane` as a config management plugin name.
 
 ```
-argocd app create kasane \
+harnesscd app create kasane \
     --config-management-plugin kasane \
-    --repo https://github.com/argoproj/argocd-example-apps \
+    --repo https://github.com/harnessproj/harnesscd-example-apps \
     --path plugins/kasane \
     --dest-server https://kubernetes.default.svc \
     --dest-namespace default

@@ -1,10 +1,10 @@
-apiVersion: argoproj.io/v1alpha1
+apiVersion: harnessproj.io/v1alpha1
 kind: Application
 metadata:
   name: sync-waves
-  namespace: argocd
+  namespace: harnesscd
   finalizers:
-  - resources-finalizer.argocd.argoproj.io
+  - resources-finalizer.harnesscd.harnessproj.io
 spec:
   destination:
     namespace: sync-waves

@@ -4,7 +4,7 @@ kind: Job
 metadata:
   generateName: upgrade-sql-schema
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    harnesscd.harnessproj.io/hook: PreSync
 spec:
   template:
     spec:
@@ -49,9 +49,9 @@ kind: Job
 metadata:
   name: maint-page-up
   annotations:
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: "1"
+    harnesscd.harnessproj.io/hook: Sync
+    harnesscd.harnessproj.io/hook-delete-policy: BeforeHookCreation
+    harnesscd.harnessproj.io/sync-wave: "1"
 spec:
   template:
     spec:
@@ -67,7 +67,7 @@ kind: ReplicaSet
 metadata:
   name: frontend
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    harnesscd.harnessproj.io/sync-wave: "2"
 spec:
   replicas: 1
   selector:
@@ -87,7 +87,7 @@ kind: Service
 metadata:
   name: frontend
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    harnesscd.harnessproj.io/sync-wave: "2"
 spec:
   selector:
     tier: frontend
@@ -101,9 +101,9 @@ kind: Job
 metadata:
   name: maint-page-down
   annotations:
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: "3"
+    harnesscd.harnessproj.io/hook: Sync
+    harnesscd.harnessproj.io/hook-delete-policy: BeforeHookCreation
+    harnesscd.harnessproj.io/sync-wave: "3"
 spec:
   template:
     spec:
