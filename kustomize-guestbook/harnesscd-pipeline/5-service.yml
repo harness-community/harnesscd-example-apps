@@ -1,0 +1,22 @@
+service:
+  name: harnessguestbook
+  identifier: harnessguestbook
+  serviceDefinition:
+    type: Kubernetes
+    spec:
+      manifests:
+        - manifest:
+            identifier: guestbook
+            type: Kustomize
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: harnessgitconnector
+                  gitFetchType: Branch
+                  folderPath: kustomize-guestbook
+                  branch: master
+              pluginPath: ""
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+  gitOpsEnabled: false
