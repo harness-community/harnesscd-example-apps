@@ -10,3 +10,4 @@ connector:
       type: InheritFromDelegate
     delegateSelectors:
       - DELEGATE_NAME
+ 
