@@ -1,12 +1,9 @@
-connector:
-  name: harness_k8sconnector
-  identifier: harnessk8sconnector
+environment:
+  name: harnessdevenv
+  identifier: harnessdevenv
   description: ""
+  tags: {}
+  type: PreProduction
   orgIdentifier: default
   projectIdentifier: default_project
-  type: K8sCluster
-  spec:
-    credential:
-      type: InheritFromDelegate
-    delegateSelectors:
-      - DELEGATE_NAME
+  variables: []
