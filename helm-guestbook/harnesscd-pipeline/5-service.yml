@@ -1,0 +1,26 @@
+service:
+  name: harnessguestbook
+  identifier: harnessguestbook
+  serviceDefinition:
+    type: Kubernetes
+    spec:
+      manifests:
+        - manifest:
+            identifier: guestbook
+            type: HelmChart
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: harnessgitconnector
+                  gitFetchType: Branch
+                  folderPath: /helm-guestbook
+                  repoName: "harnesscd-example-apps"
+                  branch: master
+              subChartPath: ""
+              valuesPaths:
+                - helm-guestbook/values.yaml
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              helmVersion: V3
+  gitOpsEnabled: false
