@@ -1,8 +1,7 @@
-# Following are the minimum set of parameters required to create a Google Cloud Function.
-# Please make sure your uploaded manifest file includes all of them.
-
 function:
-  name: google_cloud_test
+  name: my-http-function
   buildConfig:
-    runtime: nodejs18
-    entryPoint: helloGET
+    runtime: nodejs14
+    entryPoint: myFunction
+  environment: GEN_2
+function_id: my-http-function
