@@ -1,0 +1,12 @@
+connector:
+  name: harness_pdc
+  identifier: harness_pdc
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Pdc
+  spec:
+    hosts:
+      - hostname: HOST_IP_OR_FQDN
+    delegateSelectors:
+      - DELEGATE_NAME

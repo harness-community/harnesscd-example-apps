@@ -1,0 +1,9 @@
+environment:
+  name: harnessdevenv
+  identifier: harnessdevenv
+  description: ""
+  tags: {}
+  type: PreProduction
+  orgIdentifier: default
+  projectIdentifier: default_project
+  variables: []

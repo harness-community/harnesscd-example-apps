@@ -1,0 +1,19 @@
+service:
+  name: harness_ssh
+  identifier: harness_ssh
+  tags: {}
+  serviceDefinition:
+    spec:
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: harness_artifactrepo
+                artifactDirectory: /
+                artifactPath: todolist.war
+                repository: todolist-tutorial
+                repositoryFormat: generic
+              identifier: Todolist
+              type: ArtifactoryRegistry
+    type: Ssh
