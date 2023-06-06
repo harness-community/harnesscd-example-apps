@@ -1,0 +1,54 @@
+
+pipeline:
+  name: helloHttp
+  identifier: helloHttp
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: helloHttp
+        identifier: helloHttp
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: GoogleCloudFunctions
+          deploymentMetadata:
+            environmentType: GenTwo
+          service:
+            serviceRef: helloHttp
+            serviceInputs:
+              serviceDefinition:
+                type: GoogleCloudFunctions
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: gcpk8s
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: gcpk8s
+          execution:
+            steps:
+              - step:
+                  name: Deploy Cloud Function
+                  identifier: deployCloudFunction
+                  type: DeployCloudFunction
+                  timeout: 10m
+                  spec: {}
+            rollbackSteps:
+              - step:
+                  name: Rollback Cloud Function
+                  identifier: cloudFunctionRollback
+                  type: CloudFunctionRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
