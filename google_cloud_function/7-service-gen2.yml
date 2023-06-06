@@ -1,0 +1,33 @@
+service:
+  name: hello_world
+  identifier: hello_world
+  serviceDefinition:
+    type: GoogleCloudFunctions
+    spec:
+      environmentType: GenOne
+      manifests:
+        - manifest:
+            identifier: hello_world
+            type: GoogleCloudFunctionGenOneDefinition
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: github
+                  gitFetchType: Branch
+                  paths:
+                    - hello_world
+                  repoName: gcp
+                  branch: main
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: gcp
+                project: pmali-gcp
+                bucket: pmali
+                artifactPath: hello_world.zip
+              identifier: hello_world
+              type: GoogleCloudStorage
+  gitOpsEnabled: false
