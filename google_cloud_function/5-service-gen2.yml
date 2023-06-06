@@ -1,6 +1,6 @@
 service:
-  name: helloHttp
-  identifier: helloHttp
+  name: hello_http
+  identifier: hello_http
   tags: {}
   serviceDefinition:
     spec:
@@ -25,9 +25,9 @@ service:
           sources:
             - spec:
                 connectorRef: gcp
-                project: pmali-gcp
-                bucket: pmali
-                artifactPath: helloHttp.zip
+                project: <gcp-project-name>
+                bucket: <google-bucket-name>
+                artifactPath: <bucket helloHttp.zip path>
               identifier: helloHttp
               type: GoogleCloudStorage
     type: GoogleCloudFunctions
