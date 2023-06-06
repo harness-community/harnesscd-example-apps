@@ -1,0 +1,45 @@
+pipeline:
+  name: serverless-demo
+  identifier: serverlessdemo
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: stage-1
+        identifier: stage1
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: ServerlessAwsLambda
+          service:
+            serviceRef: Serverless
+          execution:
+            steps:
+              - step:
+                  name: Serverless Lambda Deploy
+                  identifier: ServerlessLambdaDeploy
+                  type: ServerlessAwsLambdaDeploy
+                  timeout: 10m
+                  spec:
+                    commandOptions: ""
+            rollbackSteps:
+              - step:
+                  name: Serverless Lambda Rollback
+                  identifier: ServerlessLambdaRollback
+                  type: ServerlessAwsLambdaRollback
+                  timeout: 10m
+                  spec: {}
+          environment:
+            environmentRef: serverlessenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: serverlessec2
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        variables: []
