@@ -1,7 +1,0 @@
-function:
-  name: my-http-function
-  buildConfig:
-    runtime: nodejs14
-    entryPoint: myFunction
-  environment: GEN_2
-function_id: my-http-function
