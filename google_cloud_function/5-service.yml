@@ -1,26 +1,33 @@
 service:
-  name: harnessguestbook
-  identifier: harnessguestbook
+  name: helloHttp
+  identifier: helloHttp
+  tags: {}
   serviceDefinition:
-    type: Kubernetes
     spec:
+      environmentType: GenTwo
       manifests:
         - manifest:
-            identifier: guestbook
-            type: HelmChart
+            identifier: hello_http
+            type: GoogleCloudFunctionDefinition
             spec:
               store:
                 type: Github
                 spec:
-                  connectorRef: harnessgitconnector
+                  connectorRef: github
                   gitFetchType: Branch
-                  folderPath: /helm-guestbook
-                  repoName: "harnesscd-example-apps"
-                  branch: master
-              subChartPath: ""
-              valuesPaths:
-                - helm-guestbook/values.yaml
-              skipResourceVersioning: false
-              enableDeclarativeRollback: false
-              helmVersion: V3
-  gitOpsEnabled: false
+                  paths:
+                    - hello_http
+                  repoName: gcp
+                  branch: main
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: gcp
+                project: pmali-gcp
+                bucket: pmali
+                artifactPath: helloHttp.zip
+              identifier: helloHttp
+              type: GoogleCloudStorage
+    type: GoogleCloudFunctions
