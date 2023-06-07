@@ -1,12 +1,13 @@
 connector:
-  name: harness_k8sconnector
-  identifier: harnessk8sconnector
+  name: gcp
+  identifier: gcp
   description: ""
   orgIdentifier: default
   projectIdentifier: default_project
-  type: K8sCluster
+  type: Gcp
   spec:
     credential:
-      type: InheritFromDelegate
-    delegateSelectors:
-      - DELEGATE_NAME
+      type: ManualConfig
+      spec:
+        secretKeyRef: pmaligcp
+    executeOnDelegate: false
