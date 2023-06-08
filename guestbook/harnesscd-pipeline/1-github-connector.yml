@@ -20,4 +20,3 @@ connector:
         tokenRef: harness_gitpat
     executeOnDelegate: false
     type: Repo
- 
