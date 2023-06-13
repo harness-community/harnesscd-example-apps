@@ -10,6 +10,6 @@ infrastructureDefinition:
   type: GoogleCloudFunctions
   spec:
     connectorRef: gcpconnector
-    project: pmali-gcp
-    region: us-central1
+    project: <Your GCP Project Name>
+    region: <Your GCP Region>
   allowSimultaneousDeployments: false
