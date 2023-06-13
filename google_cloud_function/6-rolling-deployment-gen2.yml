@@ -15,7 +15,7 @@ pipeline:
           deploymentMetadata:
             environmentType: GenTwo
           service:
-            serviceRef: helloHttp
+            serviceRef: hello_http
             serviceInputs:
               serviceDefinition:
                 type: GoogleCloudFunctions
