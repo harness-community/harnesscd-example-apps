@@ -17,7 +17,7 @@ service:
                   gitFetchType: Branch
                   paths:
                     - google_cloud_function/hello_http.yaml
-                  branch: main
+                  branch: master
       artifacts:
         primary:
           primaryArtifactRef: <+input>
@@ -26,7 +26,7 @@ service:
                 connectorRef: gcpconnector
                 project: pmali-gcp
                 bucket: pmali
-                artifactPath: pmali/helloHttp.zip
+                artifactPath: helloHttp.zip
               identifier: hello_http
               type: GoogleCloudStorage
     type: GoogleCloudFunctions
