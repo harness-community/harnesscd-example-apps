@@ -9,5 +9,5 @@ connector:
     credential:
       type: ManualConfig
       spec:
-        secretKeyRef: pmaligcp
+        secretKeyRef: gcp
     executeOnDelegate: false
