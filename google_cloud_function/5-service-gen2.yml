@@ -13,21 +13,20 @@ service:
               store:
                 type: Github
                 spec:
-                  connectorRef: github
+                  connectorRef: harnessgitconnector
                   gitFetchType: Branch
                   paths:
-                    - hello_http
-                  repoName: gcp
+                    - google_cloud_function/hello_http.yaml
                   branch: main
       artifacts:
         primary:
           primaryArtifactRef: <+input>
           sources:
             - spec:
-                connectorRef: gcp
-                project: <gcp-project-name>
-                bucket: <google-bucket-name>
-                artifactPath: <bucket helloHttp.zip path>
-              identifier: helloHttp
+                connectorRef: gcpconnector
+                project: pmali-gcp
+                bucket: pmali
+                artifactPath: pmali/helloHttp.zip
+              identifier: hello_http
               type: GoogleCloudStorage
     type: GoogleCloudFunctions
