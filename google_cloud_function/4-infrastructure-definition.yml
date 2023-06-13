@@ -1,15 +1,15 @@
 infrastructureDefinition:
-  name: gcp-k8s
+  name: gcpk8s
   identifier: gcpk8s
   description: ""
   tags: {}
   orgIdentifier: default
   projectIdentifier: default_project
-  environmentRef: gcpk8s
+  environmentRef: harnessdevenv
   deploymentType: GoogleCloudFunctions
   type: GoogleCloudFunctions
   spec:
-    connectorRef: gcp
+    connectorRef: gcpconnector
     project: pmali-gcp
     region: us-central1
   allowSimultaneousDeployments: false
