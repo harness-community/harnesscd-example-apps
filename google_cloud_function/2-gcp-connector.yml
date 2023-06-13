@@ -1,6 +1,6 @@
 connector:
-  name: gcp
-  identifier: gcp
+  name: gcpconnector
+  identifier: gcpconnector
   description: ""
   orgIdentifier: default
   projectIdentifier: default_project
