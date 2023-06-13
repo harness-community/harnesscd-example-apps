@@ -10,6 +10,6 @@ infrastructureDefinition:
   type: GoogleCloudFunctions
   spec:
     connectorRef: gcpconnector
-    project: <Your GCP Project Name>
-    region: <Your GCP Region>
+    project: GCP PROJECT NAME
+    region: GCP REGION
   allowSimultaneousDeployments: false
