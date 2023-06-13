@@ -24,8 +24,8 @@ service:
           sources:
             - spec:
                 connectorRef: gcpconnector
-                project: pmali-gcp
-                bucket: pmali
+                project: <your gcp project name>
+                bucket: <your gcp bucket name>
                 artifactPath: helloHttp.zip
               identifier: hello_http
               type: GoogleCloudStorage
