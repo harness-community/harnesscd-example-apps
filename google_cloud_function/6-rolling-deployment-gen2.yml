@@ -26,7 +26,7 @@ pipeline:
                       primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: gcpk8s
+            environmentRef: harnessdevenv
             deployToAll: false
             infrastructureDefinitions:
               - identifier: gcpk8s
