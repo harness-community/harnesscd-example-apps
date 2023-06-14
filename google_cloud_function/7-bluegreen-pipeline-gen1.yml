@@ -1,6 +1,6 @@
 pipeline:
-  name: hello_world_bluegreen
-  identifier: hello_world_bluegreen
+  name: hello_world
+  identifier: hello_world
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
@@ -44,7 +44,7 @@ pipeline:
                       primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: gcpk8s
+            environmentRef: harnessdevenv
             deployToAll: false
             infrastructureDefinitions:
               - identifier: gcpk8s
