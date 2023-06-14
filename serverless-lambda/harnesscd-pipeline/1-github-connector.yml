@@ -1,0 +1,25 @@
+connector:
+  name: serverless-git-connector
+  identifier: serverlessgitconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Github
+  spec:
+    url: https://github.com/harness-community/harnesscd-example-apps/serverless-demo-app
+    validationRepo: https://github.com/harness-community/python-pipeline-samples.git
+    authentication:
+      type: Http
+      spec:
+        type: UsernameToken
+        spec:
+          username: <Enter Your Github Username>
+          tokenRef: githubpat
+    apiAccess:
+      type: Token
+      spec:
+        tokenRef: githubpat
+    delegateSelectors:
+      - delegate-serverless-demo
+    executeOnDelegate: true
+    type: Repo

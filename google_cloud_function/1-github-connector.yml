@@ -6,7 +6,8 @@ connector:
   projectIdentifier: default_project
   type: Github
   spec:
-    url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+    url: https://github.com/GITHUB_USERNAME/
+    validationRepo: harnesscd-example-apps
     authentication:
       type: Http
       spec:
@@ -19,4 +20,4 @@ connector:
       spec:
         tokenRef: harness_gitpat
     executeOnDelegate: false
-    type: Repo
+    type: Account

@@ -1,0 +1,13 @@
+connector:
+  name: gcpconnector
+  identifier: gcpconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Gcp
+  spec:
+    credential:
+      type: ManualConfig
+      spec:
+        secretKeyRef: gcp
+    executeOnDelegate: false
