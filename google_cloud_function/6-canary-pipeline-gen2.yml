@@ -6,8 +6,8 @@ pipeline:
   tags: {}
   stages:
     - stage:
-        name: helloHttp
-        identifier: helloHttp
+        name: hello_http
+        identifier: hello_http
         description: ""
         type: Deployment
         spec:
@@ -15,7 +15,7 @@ pipeline:
           deploymentMetadata:
             environmentType: GenTwo
           service:
-            serviceRef: helloHttp
+            serviceRef: hello_http
             serviceInputs:
               serviceDefinition:
                 type: GoogleCloudFunctions
