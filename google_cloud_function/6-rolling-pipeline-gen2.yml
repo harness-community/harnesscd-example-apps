@@ -1,6 +1,6 @@
 pipeline:
-  name: hello_http
-  identifier: hello_http
+  name: rolling
+  identifier: rolling
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
