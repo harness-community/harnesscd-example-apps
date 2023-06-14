@@ -1,0 +1,24 @@
+connector:
+  name: aws-connector
+  identifier: awsconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Aws
+  spec:
+    credential:
+      crossAccountAccess:
+        crossAccountRoleArn: <Add the ARN for Your Role>
+      type: ManualConfig
+      spec:
+        accessKey: <Add the Access Key for your Region>
+        secretKeyRef: awsaccesskey
+      region: <Specifiy the Region in which you created the Users and the Roles>
+    awsSdkClientBackOffStrategyOverride:
+      type: FixedDelayBackoffStrategy
+      spec:
+        fixedBackoff: 1
+        retryCount: 2
+    delegateSelectors:
+      - docker-delegate
+    executeOnDelegate: true
