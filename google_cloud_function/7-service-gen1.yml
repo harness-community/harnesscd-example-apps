@@ -16,7 +16,7 @@ service:
                   connectorRef: harnessgitconnector
                   gitFetchType: Branch
                   paths:
-                    - hello_world
+                    - google_cloud_function/hello_world.yaml
                   branch: master
       artifacts:
         primary:
@@ -24,8 +24,8 @@ service:
           sources:
             - spec:
                 connectorRef: gcpconnector
-                project: pmali-gcp
-                bucket: pmali
+                project: GCP PROJECT
+                bucket: GCP BUCKET
                 artifactPath: hello_world.zip
               identifier: hello_world
               type: GoogleCloudStorage
