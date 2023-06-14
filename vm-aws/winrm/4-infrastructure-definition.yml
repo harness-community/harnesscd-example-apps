@@ -1,0 +1,20 @@
+infrastructureDefinition:
+  name: harness_remoteinstance
+  identifier: harness_remoteinstance
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: harnessdevenv
+  deploymentType: WinRm
+  type: SshWinRmAws
+  spec:
+    credentialsRef: harness_winrmpwd
+    connectorRef: harness_awsconnector
+    region: AWS_REGION
+    awsInstanceFilter:
+      tags:
+        Name: INSTANCE_NAME
+      vpcs: []
+    hostConnectionType: PublicIP
+  allowSimultaneousDeployments: false

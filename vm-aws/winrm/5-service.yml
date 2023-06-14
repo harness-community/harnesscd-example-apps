@@ -1,0 +1,19 @@
+service:
+  name: harness_winrm
+  identifier: harness_winrm
+  tags: {}
+  serviceDefinition:
+    spec:
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: harness_artifactrepo
+                artifactDirectory: /
+                artifactPath: todolist.zip
+                repository: todolist-tutorial
+                repositoryFormat: generic
+              identifier: Todolist
+              type: ArtifactoryRegistry
+    type: WinRm
