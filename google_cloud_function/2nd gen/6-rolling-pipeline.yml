@@ -1,0 +1,53 @@
+pipeline:
+  name: rolling
+  identifier: rolling
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: hello_http
+        identifier: hello_http
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: GoogleCloudFunctions
+          deploymentMetadata:
+            environmentType: GenTwo
+          service:
+            serviceRef: hello_http
+            serviceInputs:
+              serviceDefinition:
+                type: GoogleCloudFunctions
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: harnessdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: gcpk8s
+          execution:
+            steps:
+              - step:
+                  name: Deploy Cloud Function
+                  identifier: deployCloudFunction
+                  type: DeployCloudFunction
+                  timeout: 10m
+                  spec: {}
+            rollbackSteps:
+              - step:
+                  name: Rollback Cloud Function
+                  identifier: cloudFunctionRollback
+                  type: CloudFunctionRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

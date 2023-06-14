@@ -1,0 +1,7 @@
+function:
+  name: hello_http
+  buildConfig:
+    runtime: python311
+    entryPoint: hello_http
+  environment: GEN_2
+function_id: hello_http

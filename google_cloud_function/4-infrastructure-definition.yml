@@ -1,0 +1,15 @@
+infrastructureDefinition:
+  name: gcpk8s
+  identifier: gcpk8s
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: harnessdevenv
+  deploymentType: GoogleCloudFunctions
+  type: GoogleCloudFunctions
+  spec:
+    connectorRef: gcpconnector
+    project: GCP PROJECT NAME
+    region: GCP REGION
+  allowSimultaneousDeployments: false
