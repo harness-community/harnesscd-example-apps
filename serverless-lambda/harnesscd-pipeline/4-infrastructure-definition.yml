@@ -1,0 +1,15 @@
+infrastructureDefinition:
+  name: serverless-ec2
+  identifier: serverlessec2
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: serverlessenv
+  deploymentType: ServerlessAwsLambda
+  type: ServerlessAwsLambda
+  spec:
+    connectorRef: awsserverlessplay
+    stage: prod
+    region: us-east-1
+  allowSimultaneousDeployments: false

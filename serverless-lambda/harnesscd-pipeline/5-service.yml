@@ -1,0 +1,21 @@
+service:
+  name: Serverless
+  identifier: Serverless
+  serviceDefinition:
+    type: ServerlessAwsLambda
+    spec:
+      manifests:
+        - manifest:
+            identifier: serverless
+            type: ServerlessAwsLambda
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: serverlessgitconnector
+                  gitFetchType: Branch
+                  paths:
+                    - examples/email-signup-form/backend/
+                  branch: master
+              configOverridePath: ""
+  gitOpsEnabled: false
