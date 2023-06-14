@@ -29,7 +29,7 @@ pipeline:
                   spec: {}
                   timeout: 10m
           service:
-            serviceRef: hello_http
+            serviceRef: hello_world
             serviceInputs:
               serviceDefinition:
                 type: GoogleCloudFunctions
@@ -39,7 +39,7 @@ pipeline:
                       primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: gcpk8s
+            environmentRef: harnessdevenv
             deployToAll: false
             infrastructureDefinitions:
               - identifier: gcpk8s
