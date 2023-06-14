@@ -1,0 +1,94 @@
+pipeline:
+  name: harness_winrm_pipeline
+  identifier: harness_winrm_pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deploy-winrm
+        identifier: deploywinrm
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: WinRm
+          service:
+            serviceRef: harness_winrm
+            serviceInputs:
+              serviceDefinition:
+                type: WinRm
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: harnessdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: harness_remoteinstance
+          execution:
+            steps:
+              - stepGroup:
+                  identifier: Step_Group_1
+                  name: Step Group
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                      start: 0
+                      end: 1
+                      unit: Count
+                  steps:
+                    - step:
+                        name: Deploy
+                        identifier: Deploy_1
+                        type: Command
+                        timeout: 10m
+                        spec:
+                          onDelegate: false
+                          environmentVariables: []
+                          outputVariables: []
+                          commandUnits:
+                            - identifier: Download_Artifact
+                              name: Download Artifact
+                              type: DownloadArtifact
+                              spec:
+                                destinationPath: "%USERPROFILE%\\\\\\\\<+service.name>\\\\\\\\<+env.name>"
+            rollbackSteps:
+              - stepGroup:
+                  identifier: Step_Group_Rollback_1
+                  name: Step Group Rollback
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                      start: 0
+                      end: 1
+                      unit: Count
+                  steps:
+                    - step:
+                        name: Rollback
+                        identifier: Rollback_1
+                        type: Command
+                        timeout: 10m
+                        spec:
+                          onDelegate: false
+                          environmentVariables: []
+                          outputVariables: []
+                          commandUnits:
+                            - identifier: Do_nothing_and_Print_Hello_World
+                              name: Do nothing and Print Hello World
+                              type: Script
+                              spec:
+                                shell: PowerShell
+                                source:
+                                  type: Inline
+                                  spec:
+                                    script: echo "Hello World!"
+                              shell: PowerShell
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

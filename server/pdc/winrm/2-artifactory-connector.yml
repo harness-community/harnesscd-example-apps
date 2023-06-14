@@ -1,0 +1,11 @@
+connector:
+  name: harness_artifactrepo
+  identifier: harness_artifactrepo
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Artifactory
+  spec:
+    artifactoryServerUrl: https://harness.jfrog.io/artifactory
+    auth:
+      type: Anonymous
+    executeOnDelegate: false
