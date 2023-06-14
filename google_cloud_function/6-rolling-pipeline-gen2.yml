@@ -1,13 +1,13 @@
 pipeline:
-  name: helloHttp
-  identifier: helloHttp
+  name: hello_http
+  identifier: hello_http
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
   stages:
     - stage:
-        name: helloHttp
-        identifier: helloHttp
+        name: hello_http
+        identifier: hello_http
         description: ""
         type: Deployment
         spec:
