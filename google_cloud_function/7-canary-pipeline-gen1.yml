@@ -1,4 +1,6 @@
 pipeline:
+  name: hello_world
+  identifier: hello_world
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
@@ -12,32 +14,32 @@ pipeline:
           deploymentType: GoogleCloudFunctions
           deploymentMetadata:
             environmentType: GenOne
-         execution:
-           steps:
-             - stepGroup:
-                 name: Canary Deployment
-                 identifier: canaryDepoyment
-                 steps:
-                   - step:
-                       name: Deploy Cloud Function With No Traffic
-                       identifier: deployCloudFunctionWithNoTraffic
-                       type: DeployCloudFunctionWithNoTraffic
-                       timeout: 10m
-                       spec: {}
-                   - step:
-                       name: Cloud Function Traffic Shift
-                       identifier: cloudFunctionTrafficShiftFirst
-                       type: CloudFunctionTrafficShift
-                       timeout: 10m
-                       spec:
-                         trafficPercent: 10
-                   - step:
-                       name: Cloud Function Traffic Shift
-                       identifier: cloudFunctionTrafficShiftSecond
-                       type: CloudFunctionTrafficShift
-                       timeout: 10m
-                       spec:
-                         trafficPercent: 100
+          execution:
+            steps:
+              - stepGroup:
+                  name: Canary Deployment
+                  identifier: canaryDepoyment
+                  steps:
+                    - step:
+                        name: Deploy Cloud Function With No Traffic
+                        identifier: deployCloudFunctionWithNoTraffic
+                        type: DeployCloudFunctionWithNoTraffic
+                        timeout: 10m
+                        spec: {}
+                    - step:
+                        name: Cloud Function Traffic Shift
+                        identifier: cloudFunctionTrafficShiftFirst
+                        type: CloudFunctionTrafficShift
+                        timeout: 10m
+                        spec:
+                          trafficPercent: 10
+                    - step:
+                        name: Cloud Function Traffic Shift
+                        identifier: cloudFunctionTrafficShiftSecond
+                        type: CloudFunctionTrafficShift
+                        timeout: 10m
+                        spec:
+                          trafficPercent: 100
           service:
             serviceRef: hello_world
             serviceInputs:
@@ -49,7 +51,7 @@ pipeline:
                       primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: gcpk8s
+            environmentRef: harnessdevenv
             deployToAll: false
             infrastructureDefinitions:
               - identifier: gcpk8s
@@ -61,5 +63,3 @@ pipeline:
               action:
                 type: StageRollback
         variables: []
-  identifier: hello_world_canary
-  name: hello_world_canary
