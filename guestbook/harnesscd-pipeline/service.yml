@@ -16,7 +16,6 @@ service:
                             gitFetchType: Branch
                             paths:
                                 - guestbook/guestbook-ui-deployment.yaml
-                                - guestbook/guestbook-ui-svc.yaml
                             branch: master
                         skipResourceVersioning: false
                         enableDeclarativeRollback: false
