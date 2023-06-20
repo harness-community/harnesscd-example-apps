@@ -1,6 +1,6 @@
 pipeline:
-  name: harness_guestbook_bluegreen_pipeline
-  identifier: harness_guestbook_bluegreen_pipeline
+  name: guestbook_bluegreen_pipeline
+  identifier: guestbook_bluegreen_pipeline
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
