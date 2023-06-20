@@ -1,6 +1,6 @@
 pipeline:
-  name: harness_guestbook_pipeline
-  identifier: harness_guestbook_pipeline
+  name: harness_guestbook_rolling_pipeline
+  identifier: harness_guestbook_rolling_pipeline
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
