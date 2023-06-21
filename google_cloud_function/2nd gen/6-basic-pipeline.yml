@@ -1,6 +1,6 @@
 pipeline:
-  name: rolling
-  identifier: rolling
+  name: basic
+  identifier: basic
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
