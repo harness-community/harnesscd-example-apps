@@ -1,0 +1,80 @@
+pipeline:
+  name: harness_winrm_pipeline
+  identifier: harness_winrm_pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: winrm-deploy
+        identifier: winrmdeploy
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: WinRm
+          service:
+            serviceRef: harness_winrm
+            serviceInputs:
+              serviceDefinition:
+                type: WinRm
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: harnessdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: harness_remoteinstance
+          execution:
+            steps:
+              - step:
+                  name: Deploy
+                  identifier: Deploy
+                  type: Command
+                  timeout: 10m
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                  spec:
+                    onDelegate: false
+                    environmentVariables: []
+                    outputVariables: []
+                    commandUnits:
+                      - identifier: Download_Artifact
+                        name: Download Artifact
+                        type: DownloadArtifact
+                        spec:
+                          destinationPath: "%USERPROFILE%\\<+service.name>\\<+env.name>"
+            rollbackSteps:
+              - step:
+                  name: Rollback
+                  identifier: Rollback
+                  type: Command
+                  timeout: 10m
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                  spec:
+                    onDelegate: false
+                    environmentVariables: []
+                    outputVariables: []
+                    commandUnits:
+                      - identifier: Do_Nothing_and_Print_Hello_World
+                        name: Do Nothing and Print Hello World
+                        type: Script
+                        spec:
+                          shell: PowerShell
+                          source:
+                            type: Inline
+                            spec:
+                              script: echo "Hello World!"
+                        shell: PowerShell
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

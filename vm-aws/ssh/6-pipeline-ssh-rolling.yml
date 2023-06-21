@@ -1,0 +1,157 @@
+pipeline:
+  name: harness_ssh_pipeline
+  identifier: harness_ssh_pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deploy-ssh
+        identifier: deployssh
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Ssh
+          service:
+            serviceRef: harness_ssh
+            serviceInputs:
+              serviceDefinition:
+                type: Ssh
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: harnessdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: harness_remoteinstance
+          execution:
+            steps:
+              - stepGroup:
+                  name: Phase
+                  identifier: Phase
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                      maxConcurrency: 1
+                      partitionSize: 1
+                      unit: Count
+                  steps:
+                    - stepGroup:
+                        name: Phase Group
+                        identifier: phase_group
+                        strategy:
+                          repeat:
+                            items: <+repeat.partition>
+                        steps:
+                          - step:
+                              name: Deploy
+                              type: Command
+                              identifier: Deploy
+                              timeout: 10m
+                              spec:
+                                onDelegate: false
+                                environmentVariables: []
+                                outputVariables: []
+                                commandUnits:
+                                  - identifier: Setup_Runtime_Paths
+                                    name: Setup Runtime Paths
+                                    type: Script
+                                    spec:
+                                      shell: Bash
+                                      source:
+                                        type: Inline
+                                        spec:
+                                          script: |-
+                                            # Execute as root and pass environment variables
+                                            # su -p -
+
+                                            # Execute as root via user credentials (with root privileges)
+                                            # sudo -E su -p -
+
+                                            # Creating runtime, backup and staging folders:
+
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/runtime
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/backup
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/staging
+                                  - identifier: Copy_Artifact
+                                    name: Copy Artifact
+                                    type: Copy
+                                    spec:
+                                      sourceType: Artifact
+                                      destinationPath: $HOME/<+service.name>/<+env.name>
+                                  - identifier: Copy_Config
+                                    name: Copy Config
+                                    type: Copy
+                                    spec:
+                                      sourceType: Artifact
+                                      destinationPath: $HOME/<+service.name>/<+env.name>
+            rollbackSteps:
+              - stepGroup:
+                  name: Phase
+                  identifier: Phase
+                  strategy:
+                    repeat:
+                      items: <+stage.output.hosts>
+                      maxConcurrency: 1
+                      partitionSize: 1
+                      unit: Count
+                  steps:
+                    - stepGroup:
+                        name: Phase Group Rollback
+                        identifier: phase_group_rollback
+                        strategy:
+                          repeat:
+                            items: <+repeat.partition>
+                        steps:
+                          - step:
+                              name: Rollback
+                              identifier: Rollback
+                              type: Command
+                              timeout: 10m
+                              spec:
+                                onDelegate: false
+                                environmentVariables: []
+                                outputVariables: []
+                                commandUnits:
+                                  - identifier: Setup_Runtime_Paths_Rollback
+                                    name: Setup Runtime Paths Rollback
+                                    type: Script
+                                    spec:
+                                      shell: Bash
+                                      source:
+                                        type: Inline
+                                        spec:
+                                          script: |-
+                                            # Execute as root and pass environment variables
+                                            # su -p -
+
+                                            # Execute as root via user credentials (with root privileges)
+                                            # sudo -E su -p -
+
+                                            # Creating runtime, backup and staging folders:
+
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/runtime
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/backup
+                                            mkdir -p $HOME/<+service.name>/<+env.name>/staging
+                                  - identifier: Copy_Artifact_Rollback
+                                    name: Copy Artifact Rollback
+                                    type: Copy
+                                    spec:
+                                      sourceType: Artifact
+                                      destinationPath: $HOME/<+service.name>/<+env.name>
+                                  - identifier: Copy_Config_Rollback
+                                    name: Copy Config Rollback
+                                    type: Copy
+                                    spec:
+                                      sourceType: Artifact
+                                      destinationPath: $HOME/<+service.name>/<+env.name>
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

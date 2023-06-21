@@ -1,6 +1,6 @@
 pipeline:
-  name: harness_guestbook_pipeline
-  identifier: harness_guestbook_pipeline
+  name: guestbook_rolling_pipeline
+  identifier: guestbook_rolling_pipeline
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
@@ -22,28 +22,21 @@ pipeline:
           execution:
             steps:
               - step:
-                  name: Stage Deployment
-                  identifier: stageDeployment
-                  type: K8sBlueGreenDeploy
+                  name: Rollout Deployment
+                  identifier: rolloutDeployment
+                  type: K8sRollingDeploy
                   timeout: 10m
                   spec:
                     skipDryRun: false
                     pruningEnabled: false
-              - step:
-                  name: Swap primary with stage service
-                  identifier: bgSwapServices
-                  type: K8sBGSwapServices
-                  timeout: 10m
-                  spec:
-                    skipDryRun: false
             rollbackSteps:
               - step:
-                  name: Swap primary with stage service
-                  identifier: rollbackBgSwapServices
-                  type: K8sBGSwapServices
+                  name: Rollback Rollout Deployment
+                  identifier: rollbackRolloutDeployment
+                  type: K8sRollingRollback
                   timeout: 10m
                   spec:
-                    skipDryRun: false
+                    pruningEnabled: false
         tags: {}
         failureStrategies:
           - onFailure:

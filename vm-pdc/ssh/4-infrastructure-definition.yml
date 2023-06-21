@@ -1,0 +1,17 @@
+infrastructureDefinition:
+  name: harness_remoteserver
+  identifier: harness_remoteserver
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: harnessdevenv
+  deploymentType: Ssh
+  type: Pdc
+  spec:
+    connectorRef: harness_pdc
+    credentialsRef: harness_sshprivatekey
+    hostFilter:
+      type: All
+      spec: {}
+  allowSimultaneousDeployments: false

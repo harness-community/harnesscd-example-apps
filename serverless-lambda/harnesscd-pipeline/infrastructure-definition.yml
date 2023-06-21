@@ -9,7 +9,7 @@ infrastructureDefinition:
   deploymentType: ServerlessAwsLambda
   type: ServerlessAwsLambda
   spec:
-    connectorRef: awsserverlessplay
+    connectorRef: awsconnector
     stage: prod
     region: us-east-1
   allowSimultaneousDeployments: false

@@ -1,6 +1,6 @@
 pipeline:
-  name: harness_guestbook_pipeline
-  identifier: harness_guestbook_pipeline
+  name: guestbook_rolling_pipeline
+  identifier: guestbook_rolling_pipeline
   projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
@@ -11,7 +11,7 @@ pipeline:
         description: ""
         type: Deployment
         spec:
-          deploymentType: NativeHelm
+          deploymentType: Kubernetes
           service:
             serviceRef: harnessguestbook
           environment:
