@@ -1,0 +1,22 @@
+connector:
+  name: aws-lambda
+  identifier: awslambda
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Aws
+  spec:
+    credential:
+      type: ManualConfig
+      spec:
+        accessKey: <YOUR AWS ACCESS KEY>
+        secretKeyRef: aws_permanent_access_key
+      region: us-east-1
+    awsSdkClientBackOffStrategyOverride:
+      type: FixedDelayBackoffStrategy
+      spec:
+        fixedBackoff: 0
+        retryCount: 1
+    delegateSelectors:
+      - docker-delegate
+    executeOnDelegate: true

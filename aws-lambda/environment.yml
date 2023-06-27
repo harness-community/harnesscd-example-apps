@@ -1,0 +1,9 @@
+environment:
+  name: serverless-env
+  identifier: serverlessenv
+  description: ""
+  tags: {}
+  type: Production
+  orgIdentifier: default
+  projectIdentifier: default_project
+  variables: []

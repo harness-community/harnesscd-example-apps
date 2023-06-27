@@ -1,0 +1,6 @@
+{
+  "functionName": "helloworld",
+  "runtime": "python3.10",
+  "handler": "handler.hello",
+  "role": "<YOUR_AWS_ARN>"
+}
