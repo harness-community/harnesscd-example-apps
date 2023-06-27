@@ -2,5 +2,5 @@
   "FunctionName": "helloworld",
   "Runtime": "python311",
   "Handler": "handler.hello",
-  "Role": "arn:aws:iam::751209113259:role/serverless-lambda"
+  "Role": "ARN FOR S3"
 }
