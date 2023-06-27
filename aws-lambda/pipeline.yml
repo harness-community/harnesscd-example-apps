@@ -1,7 +1,7 @@
 pipeline:
   name: native-aws-lambda
   identifier: nativeawslambda
-  projectIdentifier: defau\
+  projectIdentifier: default_project
   orgIdentifier: default
   tags: {}
   stages:
