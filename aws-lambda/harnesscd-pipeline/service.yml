@@ -12,7 +12,7 @@ service:
               store:
                 type: Github
                 spec:
-                  connectorRef: harnessgitconnector
+                  connectorRef: serverlessgitconnector
                   gitFetchType: Branch
                   paths:
                     - aws-lambda/function-definition.json
