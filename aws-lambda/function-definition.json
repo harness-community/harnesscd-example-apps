@@ -2,5 +2,5 @@
   "functionName": "helloworld",
   "runtime": "python311",
   "handler": "handler.hello",
-  "role": "arn:aws:s3:::demo-terraform-deba"
+  "role": "arn:aws:iam::751209113259:user/sa-op"
 }
