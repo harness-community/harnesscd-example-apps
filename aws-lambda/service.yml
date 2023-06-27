@@ -1,0 +1,32 @@
+service:
+  name: aws-lambda-service
+  identifier: awslambdaservice
+  serviceDefinition:
+    type: AwsLambda
+    spec:
+      manifests:
+        - manifest:
+            identifier: functiondefinition
+            type: AwsLambdaFunctionDefinition
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: harnessgitconnector
+                  gitFetchType: Branch
+                  paths:
+                    - aws-lambda/function-definition.json
+                  repoName: harnesscd-example-apps
+                  branch: master
+      artifacts:
+        primary:
+          sources:
+            - spec:
+                connectorRef: awslambda
+                bucketName: <YOUR AWS BUCKET>
+                region: <REGION>
+                filePath: hello_world.zip
+              identifier: ArtifactIdentifier
+              type: AmazonS3
+          primaryArtifactRef: <+input>
+  gitOpsEnabled: false
