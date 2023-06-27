@@ -1,0 +1,14 @@
+infrastructureDefinition:
+  name: aws-lambda-infra
+  identifier: awslambdainfra
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: serverlessenv
+  deploymentType: AwsLambda
+  type: AwsLambda
+  spec:
+    connectorRef: awslambda
+    region: us-east-1
+  allowSimultaneousDeployments: false
