@@ -1,6 +1,6 @@
 {
-  "FunctionName": "helloworld",
-  "Runtime": "python311",
-  "Handler": "handler.hello",
-  "Role": "ARN FOR S3"
+  "functionName": "helloworld",
+  "runtime": "python311",
+  "handler": "handler.hello",
+  "role": "ARN FOR S3"
 }
