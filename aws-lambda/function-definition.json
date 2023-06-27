@@ -2,5 +2,5 @@
   "functionName": "helloworld",
   "runtime": "python3.10",
   "handler": "handler.hello",
-  "role": "arn:aws:iam::751209113259:role/serverless-lambda"
+  "role": "<YOUR_AWS_ARN>"
 }
