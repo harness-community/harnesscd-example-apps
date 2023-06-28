@@ -13,12 +13,12 @@ pipeline:
         spec:
           deploymentType: Kubernetes
           service:
-            serviceRef: harnessguestbook
+            serviceRef: harnessguestbookdep
           environment:
-            environmentRef: harnessdevenv
+            environmentRef: harnessdevenvdep
             deployToAll: false
             infrastructureDefinitions:
-              - identifier: harnessk8sinfra
+              - identifier: harnessk8sinfradep
           execution:
             steps:
               - step:

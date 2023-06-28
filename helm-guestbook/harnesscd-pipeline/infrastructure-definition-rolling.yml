@@ -6,10 +6,10 @@ infrastructureDefinition:
   orgIdentifier: default
   projectIdentifier: default_project
   environmentRef: harnessdevenv
-  deploymentType: Kubernetes
+  deploymentType: NativeHelm
   type: KubernetesDirect
   spec:
     connectorRef: harnessk8sconnector
     namespace: default
-    releaseName: <+INFRA_KEY>
+    releaseName: release-<+INFRA_KEY>
   allowSimultaneousDeployments: false
