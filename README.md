@@ -18,5 +18,3 @@ use this to learn more about Harness CD & GitOps in your own Harness account, or
 | [plugins](plugins/) | Apps which demonstrate config management plugins usage |ß
 | [blue-green](blue-green/) | Demonstrates how to implement blue-green deployment using Harness CD|
 | [apps](apps/) | An app composed of other apps |
-
-test
