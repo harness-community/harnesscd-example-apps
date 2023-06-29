@@ -5,7 +5,7 @@
 replicaCount: 3
 
 createNamespace: true
-namespace: test
+namespace: <+pipeline.eventTrigger.head_commit.id.substring(0,6)>
 
 image:
   repository: gcr.io/heptio-images/ks-guestbook-demo
