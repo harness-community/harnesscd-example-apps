@@ -15,6 +15,8 @@ use this to learn more about Harness CD & GitOps in your own Harness account, or
 | [sync-waves](sync-waves/) | Demonstrates Harness CD sync waves with hooks |
 | [helm-dependency](helm-dependency/) | Demonstrates how to customize an OTS (off-the-shelf) helm chart from an upstream repo |
 | [sock-shop](sock-shop/) | A microservices demo app (https://microservices-demo.github.io) |
-| [plugins](plugins/) | Apps which demonstrate config management plugins usage |
+| [plugins](plugins/) | Apps which demonstrate config management plugins usage |ß
 | [blue-green](blue-green/) | Demonstrates how to implement blue-green deployment using Harness CD|
 | [apps](apps/) | An app composed of other apps |
+
+test
