@@ -1,0 +1,17 @@
+connector:
+  name: approval-demo
+  identifier: approvaldemo
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  spec:
+    jiraUrl: JIRA_URL
+    username: EMAIL ID FOR JIRA
+    passwordRef: jirapat
+    delegateSelectors:
+      - DELEGATE_NAME
+    auth:
+      type: UsernamePassword
+      spec:
+        username: EMAIL ID FOR JIRA
+        passwordRef: jirapat
