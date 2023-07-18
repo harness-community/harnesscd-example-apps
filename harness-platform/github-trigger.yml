@@ -1,0 +1,26 @@
+trigger:
+  name: git-trigger
+  identifier: gittrigger
+  enabled: true
+  encryptedWebhookSecretIdentifier: ""
+  description: ""
+  tags: {}
+  orgIdentifier: ORGANIZATION_ID
+  stagesToExecute: []
+  projectIdentifier: PROJECT_ID
+  pipelineIdentifier: PIPELINE_ID
+  source:
+    type: Webhook
+    spec:
+      type: Github
+      spec:
+        type: Push
+        spec:
+          connectorRef: GITHUB_CONNECTOR
+          autoAbortPreviousExecutions: false
+          payloadConditions:
+            - key: targetBranch
+              operator: Equals
+              value: master
+          headerConditions: []
+          actions: []

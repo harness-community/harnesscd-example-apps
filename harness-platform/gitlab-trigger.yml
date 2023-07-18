@@ -1,0 +1,25 @@
+trigger:
+  name: gitlab-trigger
+  identifier: gitlabtrigger
+  enabled: true
+  description: ""
+  tags: {}
+  orgIdentifier: ORGANIZATION_ID
+  stagesToExecute: []
+  projectIdentifier: PROJECT_ID
+  pipelineIdentifier: PIPELINE_ID
+  source:
+    type: Webhook
+    spec:
+      type: Gitlab
+      spec:
+        type: Push
+        spec:
+          connectorRef: GITLAB_CONNECTOR
+          autoAbortPreviousExecutions: false
+          payloadConditions:
+            - key: targetBranch
+              operator: Equals
+              value: main
+          headerConditions: []
+          actions: []
