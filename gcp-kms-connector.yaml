@@ -1,0 +1,14 @@
+connector:
+  name: gcp_kms_connector
+  identifier: gcp_kms_connector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: GcpKms
+  spec:
+    projectId: <GCP Project ID>
+    region: <GCP Region>
+    keyRing: <GCP KeyRing>
+    keyName: <GCP KeyName>
+    credentials: gcp_kms_secret_key
+    default: false
