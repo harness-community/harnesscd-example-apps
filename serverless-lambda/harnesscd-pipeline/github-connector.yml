@@ -13,7 +13,7 @@ connector:
       spec:
         type: UsernameToken
         spec:
-          username: <Enter Your Github Username>
+          username: GITHUB_USERNAME
           tokenRef: harnessgitpat
     apiAccess:
       type: Token
