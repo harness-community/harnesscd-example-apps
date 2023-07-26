@@ -24,8 +24,8 @@ service:
           sources:
             - spec:
                 connectorRef: gcpconnector
-                project: GCP PROJECT
-                bucket: GCP BUCKET
+                project: <GCP_PROJECT>
+                bucket: <GCP_BUCKET>
                 artifactPath: hello_world.zip
               identifier: hello_world
               type: GoogleCloudStorage
