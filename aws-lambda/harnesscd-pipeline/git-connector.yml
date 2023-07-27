@@ -6,14 +6,14 @@ connector:
   projectIdentifier: default_project
   type: Github
   spec:
-    url: https://github.com/harness-community/harnesscd-example-apps
-    validationRepo: https://github.com/harness-community/harnesscd-example-apps
+    url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+    validationRepo: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
     authentication:
       type: Http
       spec:
         type: UsernameToken
         spec:
-          username: <Enter Your Github Username>
+          username: GITHUB_USERNAME
           tokenRef: harnessgitpat
     apiAccess:
       type: Token
