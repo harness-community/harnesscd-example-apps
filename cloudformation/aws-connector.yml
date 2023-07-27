@@ -1,0 +1,22 @@
+connector:
+  name: harness_awsconnector
+  identifier: harnessawsconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Aws
+  spec:
+    credential:
+      type: ManualConfig
+      spec:
+        accessKey: AWS_ACCESS_KEY
+        secretKeyRef: AWS_PERMANENT_ACCESS_TOKEN
+      region: us-east-1
+    awsSdkClientBackOffStrategyOverride:
+      type: FixedDelayBackoffStrategy
+      spec:
+        fixedBackoff: 0
+        retryCount: 0
+    delegateSelectors:
+      - DELEGATE_NAME
+    executeOnDelegate: true
