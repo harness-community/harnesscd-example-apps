@@ -1,0 +1,22 @@
+connector:
+  name: harness_gitconnector
+  identifier: harnessgitconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Github
+  spec:
+    url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+    authentication:
+      type: Http
+      spec:
+        type: UsernameToken
+        spec:
+          username: GITHUB_USERNAME
+          tokenRef: harness_gitpat
+    apiAccess:
+      type: Token
+      spec:
+        tokenRef: harness_gitpat
+    executeOnDelegate: false
+    type: Repo
