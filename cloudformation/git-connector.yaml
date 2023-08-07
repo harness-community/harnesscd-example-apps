@@ -1,13 +1,12 @@
 connector:
-  name: serverless-git-connector
-  identifier: serverlessgitconnector
+  name: harness_gitconnector
+  identifier: harnessgitconnector
   description: ""
   orgIdentifier: default
   projectIdentifier: default_project
   type: Github
   spec:
-    url: https://github.com/harness-community/harnesscd-example-apps
-    validationRepo: https://github.com/harness-community/harnesscd-example-apps
+    url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
     authentication:
       type: Http
       spec:
@@ -19,7 +18,5 @@ connector:
       type: Token
       spec:
         tokenRef: harness_gitpat
-    delegateSelectors:
-      - harness-serverless-delegate
-    executeOnDelegate: true
+    executeOnDelegate: false
     type: Repo

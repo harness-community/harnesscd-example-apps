@@ -1,24 +1,22 @@
 connector:
-  name: aws-connector
-  identifier: awsconnector
+  name: harness_awsconnector
+  identifier: harnessawsconnector
   description: ""
   orgIdentifier: default
   projectIdentifier: default_project
   type: Aws
   spec:
     credential:
-      crossAccountAccess:
-        crossAccountRoleArn: ROLE_ARN
       type: ManualConfig
       spec:
         accessKey: AWS_ACCESS_KEY
         secretKeyRef: AWS_PERMANENT_ACCESS_TOKEN
-      region: REGION_FOR_USERS_ROLES
+      region: us-east-1
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy
       spec:
-        fixedBackoff: 1
-        retryCount: 2
+        fixedBackoff: 0
+        retryCount: 0
     delegateSelectors:
-      - docker-delegate
+      - DELEGATE_NAME
     executeOnDelegate: true
