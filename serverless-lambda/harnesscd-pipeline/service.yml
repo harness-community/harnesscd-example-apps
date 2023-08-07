@@ -15,7 +15,7 @@ service:
                   connectorRef: serverlessgitconnector
                   gitFetchType: Branch
                   paths:
-                    - examples/email-signup-form/backend/
+                    - serverless-lambda/backend/
                   branch: master
               configOverridePath: ""
   gitOpsEnabled: false
