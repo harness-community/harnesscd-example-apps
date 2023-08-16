@@ -20,6 +20,6 @@ connector:
       spec:
         tokenRef: harnessgitpat
     delegateSelectors:
-      - docker-delegate
+      - DELEGATE_NAME
     executeOnDelegate: true
     type: Repo
