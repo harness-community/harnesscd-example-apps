@@ -13,12 +13,12 @@ connector:
       spec:
         accessKey: AWS_ACCESS_KEY
         secretKeyRef: AWS_PERMANENT_ACCESS_TOKEN
-      region: REGION_FOR_USERS_ROLES
+      region: REGION
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy
       spec:
         fixedBackoff: 1
         retryCount: 2
     delegateSelectors:
-      - docker-delegate
+      - DELEGATE_NAME
     executeOnDelegate: true

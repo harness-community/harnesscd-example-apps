@@ -23,7 +23,7 @@ service:
           sources:
             - spec:
                 connectorRef: awslambda
-                bucketName: AWS_BUCKET
+                bucketName: CLOUD_BUCKET_NAME
                 region: REGION
                 filePath: hello_world.zip
               identifier: ArtifactIdentifier
