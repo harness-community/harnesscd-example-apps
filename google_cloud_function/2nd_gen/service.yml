@@ -24,8 +24,8 @@ service:
           sources:
             - spec:
                 connectorRef: gcpconnector
-                project: <GCP_PROJECT>
-                bucket: <GCP_BUCKET>
+                project: CLOUD_PROJECT_NAME
+                bucket: CLOUD_BUCKET_NAME
                 artifactPath: helloHttp.zip
               identifier: hello_http
               type: GoogleCloudStorage

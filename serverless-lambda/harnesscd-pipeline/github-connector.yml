@@ -20,6 +20,6 @@ connector:
       spec:
         tokenRef: harness_gitpat
     delegateSelectors:
-      - harness-serverless-delegate
+      - DELEGATE_NAME
     executeOnDelegate: true
     type: Repo

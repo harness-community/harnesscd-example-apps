@@ -36,7 +36,7 @@ pipeline:
                   timeout: 10m
                   spec:
                     delegateSelectors:
-                      - docker-delegate
+                      - DELEGATE_NAME
             rollbackSteps:
               - step:
                   name: Aws Lambda rollback
