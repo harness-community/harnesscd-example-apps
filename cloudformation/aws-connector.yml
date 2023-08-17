@@ -10,7 +10,7 @@ connector:
       type: ManualConfig
       spec:
         accessKey: AWS_ACCESS_KEY
-        secretKeyRef: AWS_PERMANENT_ACCESS_TOKEN
+        secretKeyRef: awssecret
       region: us-east-1
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy

@@ -10,7 +10,7 @@ connector:
       type: ManualConfig
       spec:
         accessKey: AWS_ACCESS_KEY
-        secretKeyRef: AWS_PERMANENT_ACCESS_TOKEN
+        secretKeyRef: awssecret
       region: us-east-1
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy
@@ -18,5 +18,5 @@ connector:
         fixedBackoff: 0
         retryCount: 1
     delegateSelectors:
-      - docker-delegate
+      - DELEGATE_NAME
     executeOnDelegate: true

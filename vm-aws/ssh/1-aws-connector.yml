@@ -10,7 +10,7 @@ connector:
       type: ManualConfig
       spec:
         accessKey: AWS_ACCESS_KEY_ID
-        secretKeyRef: harness_awssecretkey
+        secretKeyRef: awssecret
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy
       spec:
