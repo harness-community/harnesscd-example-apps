@@ -11,7 +11,7 @@ infrastructureDefinition:
   spec:
     credentialsRef: harness_sshprivatekey
     connectorRef: harness_awsconnector
-    region: AWS_REGION
+    region: REGION
     awsInstanceFilter:
       tags:
         Name: INSTANCE_NAME
