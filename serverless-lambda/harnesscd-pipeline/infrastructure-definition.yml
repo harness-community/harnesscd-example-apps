@@ -11,5 +11,5 @@ infrastructureDefinition:
   spec:
     connectorRef: awsconnector
     stage: prod
-    region: us-east-1
+    region: CLOUD_REGION_NAME
   allowSimultaneousDeployments: false

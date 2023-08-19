@@ -11,7 +11,7 @@ infrastructureDefinition:
   spec:
     credentialsRef: harness_winrmpwd
     connectorRef: harness_awsconnector
-    region: REGION
+    region: CLOUD_REGION_NAME
     awsInstanceFilter:
       tags:
         Name: INSTANCE_NAME

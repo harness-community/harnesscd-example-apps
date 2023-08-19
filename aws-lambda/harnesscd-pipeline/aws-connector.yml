@@ -11,7 +11,7 @@ connector:
       spec:
         accessKey: AWS_ACCESS_KEY
         secretKeyRef: awssecret
-      region: us-east-1
+      region: CLOUD_REGION_NAME
     awsSdkClientBackOffStrategyOverride:
       type: FixedDelayBackoffStrategy
       spec:
