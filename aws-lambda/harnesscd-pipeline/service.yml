@@ -24,7 +24,7 @@ service:
             - spec:
                 connectorRef: awslambda
                 bucketName: CLOUD_BUCKET_NAME
-                region: REGION
+                region: CLOUD_REGION_NAME
                 filePath: hello_world.zip
               identifier: ArtifactIdentifier
               type: AmazonS3

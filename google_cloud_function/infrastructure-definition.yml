@@ -11,5 +11,5 @@ infrastructureDefinition:
   spec:
     connectorRef: gcpconnector
     project: CLOUD_PROJECT_NAME
-    region: REGION
+    region: CLOUD_REGION_NAME
   allowSimultaneousDeployments: false
