@@ -1,0 +1,23 @@
+gitops:
+  name: gitops-kustomize-application
+  projectIdentifier: default_project
+  orgIdentifier: default
+  type: application
+  application:
+    metadata:
+      namespace: default
+      clusterName: gitops_cluster
+      labels:
+        harness.io/serviceRef: harnessguestbook
+        harness.io/envRef: harnessdevenv
+    spec:
+      source:
+        repoURL: https://github.com/harness-community/harnesscd-example-apps
+        path: kustomize-guestbook
+        targetRevision: master
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+  agentIdentifier: AGENT_NAME
+  clusterIdentifier: gitopscluster
+  repoIdentifier: gitopsrepo
