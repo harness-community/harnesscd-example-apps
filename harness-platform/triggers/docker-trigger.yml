@@ -1,0 +1,36 @@
+trigger:
+  name: docker-trigger
+  identifier: dockertrigger
+  enabled: true
+  tags: {}
+  orgIdentifier: ORGANIZATION_ID
+  projectIdentifier: PROJECT_ID
+  pipelineIdentifier: PIPELINE_ID
+  stagesToExecute: []
+  source:
+    type: Artifact
+    spec:
+      type: DockerRegistry
+      spec:
+        connectorRef: DOCKER_CONNECTOR
+        imagePath: MAINTAINER/IMAGE
+        tag: <+trigger.artifact.build>
+        metaDataConditions: []
+        eventConditions: []
+  inputYaml: |
+    pipeline:
+      identifier: PIPELINE_ID
+      stages:
+        - stage:
+            identifier: CD_STAGE_ID
+            type: Deployment
+            spec:
+              service:
+                serviceInputs:
+                  serviceDefinition:
+                    type: Kubernetes
+                    spec:
+                      artifacts:
+                        primary:
+                          primaryArtifactRef: ARTIFACT_ID
+                          sources: ""
