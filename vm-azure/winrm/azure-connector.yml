@@ -4,16 +4,16 @@ connector:
   description: ""
   orgIdentifier: default
   projectIdentifier: default_project
-  type: Aws
+  type: Azure
   spec:
     credential:
       type: ManualConfig
       spec:
-        accessKey: AWS_ACCESS_KEY_ID
-        secretKeyRef: azuresecret
-    awsSdkClientBackOffStrategyOverride:
-      type: FixedDelayBackoffStrategy
-      spec:
-        fixedBackoff: 0
-        retryCount: 0
+        applicationId: APPLICATION_ID
+        tenantId: TENANT_ID
+        auth:
+          type: Secret
+          spec:
+            secretRef: azuresecret
+    azureEnvironmentType: AZURE
     executeOnDelegate: false
