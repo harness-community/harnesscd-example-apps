@@ -1,0 +1,19 @@
+connector:
+  name: harness_azureconnector
+  identifier: harness_azureconnector
+  description: ""
+  orgIdentifier: default
+  projectIdentifier: default_project
+  type: Azure
+  spec:
+    credential:
+      type: ManualConfig
+      spec:
+        applicationId: APPLICATION_ID
+        tenantId: TENANT_ID
+        auth:
+          type: Secret
+          spec:
+            secretRef: azuresecret
+    azureEnvironmentType: AZURE
+    executeOnDelegate: false

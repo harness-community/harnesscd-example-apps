@@ -1,0 +1,19 @@
+infrastructureDefinition:
+  name: harness_remoteinstance
+  identifier: harness_remoteinstance
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: harnessdevenv
+  deploymentType: WinRm
+  type: SshWinRmAzure
+  spec:
+    credentialsRef: harness_winrmpwd
+    connectorRef: harness_azureconnector
+    subscriptionId: VM_SUBSCRIPTION_ID
+    resourceGroup: VM_RESOURCE_GROUP
+    tags:
+      Name: INSTANCE_NAME
+    hostConnectionType: PublicIP
+  allowSimultaneousDeployments: false
