@@ -1,0 +1,21 @@
+service:
+    name: ownapp_service
+    identifier: ownappservice
+    serviceDefinition:
+        type: Kubernetes
+        spec:
+            manifests:
+                - manifest:
+                    identifier: ownapp
+                    type: K8sManifest
+                    spec:
+                    store:
+                        type: Github
+                        spec:
+                            connectorRef: ownappgitconnector
+                            gitFetchType: Branch
+                            paths:
+                                - deploy/kubernetes/complete-demo.yaml
+                            branch: master
+                        skipResourceVersioning: false
+                        enableDeclarativeRollback: false

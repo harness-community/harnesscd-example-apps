@@ -1,0 +1,12 @@
+connector:
+name: ownapp_k8sconnector
+identifier: ownappk8sconnector
+description: ""
+orgIdentifier: default
+projectIdentifier: default_project
+type: K8sCluster
+spec:
+    credential:
+    type: InheritFromDelegate
+    delegateSelectors:
+    - DELEGATE_NAME

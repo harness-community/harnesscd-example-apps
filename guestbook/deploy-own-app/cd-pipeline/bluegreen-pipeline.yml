@@ -1,0 +1,53 @@
+pipeline:
+  name: ownapp_bluegreen_pipeline
+  identifier: ownapp_bluegreen_pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deploy-ownapp
+        identifier: deployownapp
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: ownappservice
+          environment:
+            environmentRef: ownappdevenv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: ownappk8sinfra
+          execution:
+            steps:
+              - step:
+                  name: Stage Deployment
+                  identifier: stageDeployment
+                  type: K8sBlueGreenDeploy
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+              - step:
+                  name: Swap primary with stage service
+                  identifier: bgSwapServices
+                  type: K8sBGSwapServices
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+            rollbackSteps:
+              - step:
+                  name: Swap primary with stage service
+                  identifier: rollbackBgSwapServices
+                  type: K8sBGSwapServices
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
