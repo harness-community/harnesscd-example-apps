@@ -1,0 +1,23 @@
+gitops:
+  name: ownapp-application
+  projectIdentifier: default_project
+  orgIdentifier: default
+  type: application
+  application:
+    metadata:
+      namespace: default
+      clusterName: ownapp_cluster
+      labels:
+        harness.io/serviceRef: harnesssockshop
+        harness.io/envRef: harnessdevenv
+    spec:
+      source:
+        repoURL: https://github.com/microservices-demo/microservices-demo
+        path: deploy/kubernetes
+        targetRevision: master
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+  agentIdentifier: AGENT_NAME
+  clusterIdentifier: ownappcluster
+  repoIdentifier: ownapprepo

@@ -1,0 +1,11 @@
+gitops:
+  name: ownapp_cluster
+  identifier: ownappcluster
+  projectIdentifier: default_project
+  orgIdentifier: default
+  type: cluster
+  cluster:
+    server: https://kubernetes.default.svc
+    config:
+      clusterConnectionType: IN_CLUSTER
+  agentIdentifier: AGENT_NAME

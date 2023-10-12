@@ -1,0 +1,11 @@
+gitops:
+    name: ownapp_repo
+    identifier: ownapprepo
+    projectIdentifier: default_project
+    orgIdentifier: default
+    type: repository
+    repo:
+        repo: https://github.com/microservices-demo/microservices-demo
+        type: git
+        connectionType: HTTPS_ANONYMOUS
+    agentIdentifier: AGENT_NAME
