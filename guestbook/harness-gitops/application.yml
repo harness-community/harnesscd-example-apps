@@ -5,7 +5,6 @@ gitops:
   type: application
   application:
     metadata:
-      namespace: default
       clusterName: gitops_cluster
       labels:
         harness.io/serviceRef: harnessguestbook
