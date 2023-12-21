@@ -6,6 +6,9 @@ gitops:
   application:
     metadata:
       clusterName: gitops_cluster
+      labels:
+        harness.io/serviceRef: ""
+        harness.io/envRef: ""
     spec:
       source:
         repoURL: https://github.com/harness-community/harnesscd-example-apps
