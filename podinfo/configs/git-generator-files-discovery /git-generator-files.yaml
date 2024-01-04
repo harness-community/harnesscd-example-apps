@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1  
+kind: ApplicationSet  
+metadata:  
+  name: podinfo  
+spec:  
+  generators:  
+    - git:  
+        repoURL: https://github.com/GITHUB_USERNAME/harnesscd-example-apps.git  
+        revision: HEAD  
+        files:  
+        - path: "podinfo/configs/git-generator-files-discovery/cluster-config/**/config.json"  
+  template:  
+    metadata:  
+      name: '{{cluster.namespace}}-podinfo'  
+    spec:  
+      project: YOUR_ARGO_PROJECT_ID  
+      source:  
+        repoURL: https://github.com/YOUR_GITHUB_USERNAME/harness-gitops-workshop.git  
+        targetRevision: HEAD  
+        path: "podinfo/configs/git-generator-files-discovery/apps/podinfo"  
+      destination:  
+        server: '{{cluster.address}}'  
+        namespace: '{{cluster.namespace}}'  
+      syncPolicy:  
+        syncOptions:
+        - CreateNamespace=true
