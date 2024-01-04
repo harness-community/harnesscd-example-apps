@@ -23,44 +23,6 @@ pipeline:
           execution:
             steps:
               - step:
-                  type: ShellScript
-                  name: UpdateDeploymentArtifact
-                  identifier: UpdateDeploymentArtifact
-                  spec:
-                    shell: Bash
-                    onDelegate: true
-                    source:
-                      type: Inline
-                      spec:
-                        script: |-
-                          export IMAGE_TAG="<+pipeline.variables.imageRepo>:<+pipeline.variables.imageTag>"
-                          rm -rf harnesscd-example-apps
-                          git config --global user.email ci-bot@argocd.com && git config --global user.name ci-bot
-                          echo "cloning repo..."
-                          GITHUBPAT=<+secrets.getValue("github_pat")>
-                          git clone https://oauth2:$GITHUBPAT@github.com/GITHUB_USERNAME/harnesscd-example-apps
-                          cd harness-gitops-workshop
-                          ls
-                          FILE_PATH="podinfo/configs/git-generator-files-discovery/apps/podinfo/deployment.yaml"
-
-                          # Detect OS and set the sed in-place edit command accordingly
-                          if [[ "$OSTYPE" == "darwin"* ]]; then
-                              SED_COMMAND="sed -i ''"
-                          else
-                              SED_COMMAND="sed -i"
-                          fi
-
-                          echo "Updating image tag in deployment YAML"
-                          $SED_COMMAND "s|image: .*|image: $IMAGE_TAG|g" "$FILE_PATH"
-
-                          echo "Committing and pushing"
-                          git add .
-                          git commit -m "Update latest deployment artifact"
-                          git push
-                    environmentVariables: []
-                    outputVariables: []
-                  timeout: 10m
-              - step:
                   type: GitOpsUpdateReleaseRepo
                   name: Update Release Repo
                   identifier: updateReleaseRepo
@@ -200,14 +162,3 @@ pipeline:
                 - AllErrors
               action:
                 type: StageRollback
-  variables:
-    - name: imageRepo
-      type: String
-      description: ""
-      required: false
-      value: DOCKER_HUB_USERNAME/harness-gitops-workshop
-    - name: imageTag
-      type: String
-      description: ""
-      required: false
-      value: <+codebase.commitSha>
