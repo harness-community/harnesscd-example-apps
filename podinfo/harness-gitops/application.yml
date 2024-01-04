@@ -11,9 +11,9 @@ gitops:
         harness.io/envRef: ""
     spec:
       source:
-        repoURL: https://github.com/harness-community/harnesscd-example-apps
-        path: podinfo
-        targetRevision: master
+        repoURL: https://github.com/YOUR_GITHUB_USERNAME/harnesscd-example-apps
+        path: podinfo/configs/git-generator-files-discovery
+        targetRevision: main
       destination:
         server: https://kubernetes.default.svc
         namespace: default
