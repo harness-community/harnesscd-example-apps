@@ -1,0 +1,34 @@
+service:
+  name: podinfoservice
+  identifier: podinfoservice
+  orgIdentifier: default
+  projectIdentifier: default_project
+  serviceDefinition:
+    spec:
+      manifests:
+        - manifest:
+            identifier: configjson
+            type: ReleaseRepo
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: githubconnector
+                  gitFetchType: Branch
+                  paths:
+                    - podinfo/configs/git-generator-files-discovery/cluster-config/engineering/<+env.name>/config.json
+                  branch: main
+        - manifest:
+            identifier: podinfodeployment
+            type: DeploymentRepo
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: githubconnector
+                  gitFetchType: Branch
+                  paths:
+                    - podinfo/configs/git-generator-files-discovery/git-generator-files.yaml
+                  branch: main
+    type: Kubernetes
+  gitOpsEnabled: true
