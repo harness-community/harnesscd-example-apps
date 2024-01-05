@@ -24,7 +24,7 @@ trigger:
               value: podinfo/configs/git-generator-files-discovery/
             - key: targetBranch
               operator: Equals
-              value: main
+              value: master
           headerConditions: []
           actions: []
   inputYaml: |

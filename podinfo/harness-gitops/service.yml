@@ -17,7 +17,7 @@ service:
                   gitFetchType: Branch
                   paths:
                     - podinfo/configs/git-generator-files-discovery/cluster-config/engineering/<+env.name>/config.json
-                  branch: main
+                  branch: master
         - manifest:
             identifier: podinfodeployment
             type: DeploymentRepo
@@ -29,6 +29,6 @@ service:
                   gitFetchType: Branch
                   paths:
                     - podinfo/configs/git-generator-files-discovery/git-generator-files.yaml
-                  branch: main
+                  branch: master
     type: Kubernetes
   gitOpsEnabled: true
