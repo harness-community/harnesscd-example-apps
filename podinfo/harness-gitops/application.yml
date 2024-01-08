@@ -11,7 +11,7 @@ gitops:
         harness.io/envRef: ""
     spec:
       source:
-        repoURL: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+        repoURL: https://github.com/harness-community/harnesscd-example-apps
         path: podinfo/configs/git-generator-files-discovery
         targetRevision: master
       destination:
