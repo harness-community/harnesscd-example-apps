@@ -5,7 +5,7 @@ gitops:
     orgIdentifier: default
     type: repository
     repo:
-        repo: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+        repo: https://github.com/harness-community/harnesscd-example-apps
         type: git
         connectionType: HTTPS_ANONYMOUS
     agentIdentifier: AGENT_NAME
