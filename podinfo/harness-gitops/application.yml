@@ -12,7 +12,7 @@ gitops:
     spec:
       source:
         repoURL: https://github.com/harness-community/harnesscd-example-apps
-        path: podinfo/configs/git-generator-files-discovery
+        path: podinfo
         targetRevision: master
       destination:
         server: https://kubernetes.default.svc
