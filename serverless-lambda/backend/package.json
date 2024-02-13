@@ -7,7 +7,7 @@
   "author": "Serverless.com",
   "license": "MIT",
   "dependencies": {
-    "js-yaml": "^3.13.0",
+    "js-yaml": "^3.13.1",
     "serverless-finch": "^2.3.2"
   },
   "devDependencies": {
