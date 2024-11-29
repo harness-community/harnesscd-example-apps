@@ -1,0 +1,28 @@
+service:
+  name: helm_service_native
+  identifier: helm_service_native
+  serviceDefinition:
+    type: NativeHelm
+    spec:
+      manifests:
+        - manifest:
+            identifier: helm_deploy
+            type: HelmChart
+            spec:
+              store:
+                type: HarnessCode
+                spec:
+                  gitFetchType: Branch
+                  folderPath: /
+                  repoName: Deploy-helm-bg-canary
+                  branch: main
+              subChartPath: ""
+              valuesPaths:
+                - /values.yaml
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              helmVersion: V3
+              fetchHelmChartMetadata: false
+  gitOpsEnabled: false
+  orgIdentifier: default
+  projectIdentifier: CD_Samples

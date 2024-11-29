@@ -1,0 +1,105 @@
+pipeline:
+  projectIdentifier: CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: build
+        identifier: build
+        description: ""
+        type: Pipeline
+        spec:
+          org: default
+          pipeline: BuildDocker
+          project: CD_Samples
+          inputs:
+            identifier: BuildDocker
+            properties:
+              ci:
+                codebase:
+                  build:
+                    spec:
+                      branch: main
+                    type: branch
+            variables:
+              - name: tag_value
+                type: String
+                value: <+input>
+          outputs:
+            - name: imagetag
+              value: <+pipeline.variables.tag_value>
+    - stage:
+        name: deploy stable
+        identifier: deploy_stable
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: NativeHelm
+          service:
+            serviceRef: helm_service_native
+          environment:
+            environmentRef: helm_native_env
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: helm_native_infra
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_1
+                  identifier: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: echo <+pipeline.stages.build_deploy.output.imagetag>
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+              - step:
+                  name: Stage Deployment
+                  identifier: stageDeployment
+                  type: HelmBGDeploy
+                  timeout: 30m
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+                    ignoreReleaseHistFailStatus: true
+              - step:
+                  name: Swap primary with stage service
+                  identifier: bgSwapServices
+                  type: HelmBlueGreenSwapStep
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+            rollbackSteps:
+              - step:
+                  name: Swap primary with stage service
+                  identifier: rollbackBgSwapServices
+                  type: HelmBlueGreenSwapStep
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  properties:
+    ci:
+      codebase:
+        repoName: Deploy-helm-bg-canary
+        build: <+input>
+        sparseCheckout: []
+  identifier: helmnativecanarybluegreen
+  name: helm-native-canary-blue-green
+  variables:
+    - name: imageTag
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.build_deploy.output.imagetag>

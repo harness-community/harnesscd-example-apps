@@ -1,0 +1,13 @@
+infrastructureDefinition:
+  name: helm_native_infra
+  identifier: hlem_native_infra
+  orgIdentifier: default
+  projectIdentifier: CD_Samples
+  environmentRef: helm_native_env
+  deploymentType: NativeHelm
+  type: KubernetesDirect
+  spec:
+    connectorRef: faq_generator
+    namespace: harness-delegate-ng
+    releaseName: release-<+INFRA_KEY_SHORT_ID>
+  allowSimultaneousDeployments: false
