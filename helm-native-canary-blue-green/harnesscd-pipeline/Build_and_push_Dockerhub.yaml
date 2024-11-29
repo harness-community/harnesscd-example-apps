@@ -1,0 +1,41 @@
+pipeline:
+  name: Build
+  identifier: Build
+  projectIdentifier: CD_Samples
+  orgIdentifier: default
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        repoName: Build
+        build: <+input>
+  stages:
+    - stage:
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+          buildIntelligence:
+            enabled: true
+          execution:
+            steps:
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: BuildAndPushDockerRegistry_1
+                  identifier: BuildAndPushDockerRegistry_1
+                  spec:
+                    connectorRef: Dockerhub_test
+                    repo: krishi0408/python-helm-native-canary-blue
+                    tags:
+                      - <+pipeline.sequenceId>
+                    caching: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+        name: Build and push to dockerhub
+        identifier: Build_and_push_to_dockerhub
+        description: ""

@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: krishi0408/python-helm-native-canary-blue
+  tag: <+pipeline.variables.imageTag>
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Redirect HTTP to HTTPS
+  hosts:
+    - host: dev.helm-native-canary-python-bg.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "0.25"
+  limits:
+    memory: "256Mi"
+    cpu: "0.5"
+
+env:
+  - name: NODE_ENV
+    value: development
+  - name: API_BASE_URL
+    value: "https://dev.api.helm-native-canary-python-bg.example.com"
+
+logging:
+  level: DEBUG
