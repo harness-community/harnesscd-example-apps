@@ -33,7 +33,8 @@ This pipeline is designed for the following use case:
 - **Kubernetes cluster for containerised step group**: Select the kubernetes cluster for container based execution for step group for Google Cloud Run Step Group and Google Cloud Run Rollback Step Group.
 - **Container Registry and Image**: Select Container registry and Image for Google cloud Run Deploy, Google Cloud Run Prepare Rollback Data, GoogleCloudRunTrafficShift_1.
 
-Google Cloud Run Manifest File Structure
+**Google Cloud Run Manifest File Structure**
+
 The manifest file defines the Google Cloud Run service :-
 
 ```yaml
