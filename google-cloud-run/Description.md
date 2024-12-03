@@ -28,6 +28,7 @@ This pipeline is designed for the following use case:
 
 **Inputs**:
 
+- **Image Path**: Provide the Image path of your artifact.
 - **Artifact tag**: Provide artifact tag that you want to deploy using google cloud run.
 - **Kubernetes cluster for containerised step group**: Select the kubernetes cluster for container based execution for step group for Google Cloud Run Step Group and Google Cloud Run Rollback Step Group.
 - **Container Registry and Image**: Select Container registry and Image for Google cloud Run Deploy, Google Cloud Run Prepare Rollback Data, GoogleCloudRunTrafficShift_1.
@@ -54,6 +55,11 @@ spec:
             - containerPort: 8080
 ```
 ---
+
+## Documentation
+
+- [Google Cloud Run](https://developer.harness.io/docs/continuous-delivery/deploy-srv-diff-platforms/google-cloud-functions/google-cloud-run/)
+- [CD Artifact Source](https://developer.harness.io/docs/continuous-delivery/x-platform-cd-features/services/artifact-sources/)
 
 ## Conclusion
 
