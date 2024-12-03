@@ -1,0 +1,16 @@
+# Following are the minimum set of parameters required to create a Google Cloud Run Service.
+# Please make sure your uploaded manifest file includes all of them.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: qademo3
+  annotations:
+    run.googleapis.com/minScale: '2'
+spec:
+  template:
+    spec:
+      containers:
+        - image: <+input>
+          ports:
+            - containerPort: 8080

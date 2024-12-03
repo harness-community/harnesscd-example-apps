@@ -1,0 +1,13 @@
+infrastructureDefinition:
+  name: gcr_test_infra
+  identifier: gcr_test_infra
+  orgIdentifier: default
+  projectIdentifier: lbtest
+  environmentRef: gcr_test
+  deploymentType: GoogleCloudRun
+  type: GoogleCloudRun
+  spec:
+    connectorRef: <+input>
+    project: <+input>
+    region: <+input>
+  allowSimultaneousDeployments: false

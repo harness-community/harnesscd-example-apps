@@ -1,0 +1,30 @@
+service:
+  name: service_gcr
+  identifier: service_gcr
+  serviceDefinition:
+    type: GoogleCloudRun
+    spec:
+      manifests:
+        - manifest:
+            identifier: gcr_sample
+            type: GoogleCloudRunService
+            spec:
+              store:
+                type: Harness
+                spec:
+                  files:
+                    - /manifest.yml
+      artifacts:
+        primary:
+          primaryArtifactRef: <+input>
+          sources:
+            - spec:
+                connectorRef: Docker_gcr_test
+                imagePath: krishi0408/python-helm-native-canary-blue
+                tag: <+input>
+                digest: ""
+              identifier: artifact_gcr
+              type: DockerRegistry
+  gitOpsEnabled: false
+  orgIdentifier: default
+  projectIdentifier: lbtest
