@@ -19,7 +19,7 @@ This pipeline is designed for the following use case:
 
 ## Pipeline Use Case Details
 
-**Stage 1: Deployment**
+**Stage 1: AzureFunctionDeploy**
 
 **Objective**: Deploy an artifact to Azure deployment of Azure Functions, enabling you to automate and manage serverless function deployments to Azure with ease.
 
@@ -48,20 +48,20 @@ Refer to [Add Microsoft Azure Connector](https://developer.harness.io/docs/platf
   - **Function App Name**: Enter a unique name.
   - **Region**: Select your region.
   - **Runtime Stack**: Select the runtime (e.g., Node.js, Python).
-  - **Storage Accoun**t: Select the storage account created earlier.
+  - **Storage Account**: Select the storage account.
   - Click **Review + Create → Create**.
 
   ![](./static/Screenshot%202024-12-03%20at%202.53.05%20PM.png)
 
   You can use Azure CLI as well to create Function App, Resource Group and Storage Account.
 
-Read more on [Azure Documentation](https://learn.microsoft.com/en-us/azure/azure-functions/functions-create-function-app-portal?pivots=programming-language-csharp).
+Read more on [Azure Documentation](https://learn.microsoft.com/en-us/azure/azure-functions/functions-get-started?pivots=programming-language-python).
 
 ### Creating Deployment Slots
 
 1. Navigate to **Function App**
 
-2. In the Azure Portal, go to Function Apps and select your function app.
+2. In the Azure Portal, go to **Function Apps** and select your function app.
 
 3. Add a **Deployment Slot**:
 
@@ -75,6 +75,17 @@ Fill in the details:
 Once created, you'll see the new slot listed under **Deployment Slots**.
 
 ![](./static/Screenshot%202024-12-03%20at%203.31.06%20PM.png)
+
+## Execution 
+
+When deploying an Azure Function using Harness, the Function App and Deployment Slots are automatically fetched based on the Azure connector provided in the Azure Function Deploy step.
+
+The Function App must exist in the same subscription as specified in the Azure connector.
+
+If a Function App or Deployment Slot does not exist, create them in the Azure Portal following the instructions:-
+
+1. [Creating Function App](#creating-function-app)
+2. [Creating Deployment Slots](#creating-deployment-slots)
 
 ## Conclusion 
 
