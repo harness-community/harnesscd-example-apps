@@ -1,0 +1,19 @@
+service:
+  name: AzureFunctionAll
+  identifier: AzureFunctionAll
+  orgIdentifier: Ng_Pipelines_K8s
+  projectIdentifier: TestProject
+  serviceDefinition:
+    spec:
+      artifacts:
+        primary:
+          sources:
+            - spec:
+                connectorRef: <+input>
+                imagePath: <+input>
+                tag: <+input>
+                digest: ""
+              identifier: azure_artifact_test
+              type: DockerRegistry
+          primaryArtifactRef: <+input>
+    type: AzureFunction

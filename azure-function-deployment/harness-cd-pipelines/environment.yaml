@@ -1,0 +1,8 @@
+environment:
+  name: Azure
+  identifier: Azure
+  description: ""
+  tags: {}
+  type: Pre-Production
+  orgIdentifier: Ng_Pipelines_K8s
+  projectIdentifier: TestProject

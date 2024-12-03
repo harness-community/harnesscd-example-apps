@@ -1,0 +1,95 @@
+pipeline:
+  projectIdentifier: TestProject
+  orgIdentifier: Ng_Pipelines_K8s
+  tags: {}
+  stages:
+    - stage:
+        name: Testing
+        identifier: Testing
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: AzureFunction
+          service:
+            serviceRef: AzureFunctionAll
+            serviceInputs:
+              serviceDefinition:
+                type: AzureFunction
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: Azure
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: AzureFunction_infra
+                inputs:
+                  identifier: AzureFunction_infra
+                  type: AzureFunction
+                  spec:
+                    connectorRef: <+input>
+                    subscriptionId: <+input>
+                    resourceGroup: <+input>
+                    provisioner: <+input>
+          execution:
+            steps:
+              - stepGroup:
+                  steps:
+                    - step:
+                        identifier: Azure_Function_Deploy
+                        type: AzureFunctionDeploy
+                        name: Azure Function Deploy
+                        spec:
+                          connectorRef: <+input>
+                          image: <+input>
+                          imagePullPolicy: Always
+                          resources:
+                            limits:
+                              memory: 1G
+                          functionApp: <+input>
+                          deploymentSlot: <+input>
+                          delegateSelectors:
+                            - pipeline-cdng-delegate
+                        timeout: 10m
+                        when:
+                          stageStatus: Success
+                  name: Azure Function Step Group
+                  identifier: Azure_Function_step_group
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: <+input>
+                      namespace: default
+            rollbackSteps:
+              - stepGroup:
+                  identifier: azure_function_step_group
+                  name: Azure Function Step Group
+                  steps:
+                    - step:
+                        identifier: azure_function_step_rollback
+                        type: AzureFunctionRollback
+                        name: Azure Function Rollback
+                        timeout: 10m
+                        spec:
+                          connectorRef: account.harnessImage
+                          image: harnessdev/azure-function-plugin:1.0.15-linux-amd64
+                          imagePullPolicy: Always
+                          resources:
+                            limits:
+                              memory: 2G
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: <+input>
+                      namespace: default
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  identifier: Azure_function_clone
+  name: Azure function sample
