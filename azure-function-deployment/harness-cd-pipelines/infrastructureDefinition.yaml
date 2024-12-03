@@ -1,0 +1,14 @@
+infrastructureDefinition:
+  name: AzureFunction_infra
+  identifier: rajAzureFunction
+  orgIdentifier: Ng_Pipelines_K8s
+  projectIdentifier: TestProject
+  environmentRef: Azure
+  deploymentType: AzureFunction
+  type: AzureFunction
+  spec:
+    connectorRef: <+input>
+    subscriptionId: <+input>
+    resourceGroup: <+input>
+    provisioner: <+input>
+  allowSimultaneousDeployments: false
