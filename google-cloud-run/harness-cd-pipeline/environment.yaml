@@ -1,0 +1,9 @@
+environment:
+  name: gcr_test
+  identifier: gcr_test
+  description: ""
+  tags: {}
+  type: PreProduction
+  orgIdentifier: default
+  projectIdentifier: lbtest
+  variables: []

@@ -1,0 +1,115 @@
+pipeline:
+  name: GCR_Pipeline_Sample
+  identifier: GCR_Pipeline_Sample
+  tags: {}
+  projectIdentifier: lbtest
+  orgIdentifier: default
+  stages:
+    - stage:
+        name: google_cloud_run
+        identifier: google_cloud_run
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: GoogleCloudRun
+          service:
+            serviceRef: service_gcr
+            serviceInputs:
+              serviceDefinition:
+                type: GoogleCloudRun
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            environmentRef: gcr_test
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: gcr_test_infra
+          execution:
+            steps:
+              - stepGroup:
+                  steps:
+                    - step:
+                        type: DownloadManifests
+                        name: DownloadManifests
+                        identifier: DownloadManifests
+                        spec: {}
+                        failureStrategies: []
+                    - step:
+                        type: GoogleCloudRunPrepareRollbackData
+                        name: Google Cloud Run Prepare Rollback Data
+                        identifier: Google_Cloud_Run_Prepare_Rollback_Data
+                        spec:
+                          connectorRef: <+input>
+                          image: <+input>
+                          imagePullPolicy: Always
+                        when:
+                          stageStatus: Success
+                        timeout: 10m
+                    - step:
+                        type: GoogleCloudRunDeploy
+                        name: Google Cloud Run Deploy
+                        identifier: Google_Cloud_Run_Deploy
+                        spec:
+                          connectorRef: <+input>
+                          image: <+input>
+                          imagePullPolicy: Always
+                        when:
+                          stageStatus: Success
+                        timeout: 10m
+                    - step:
+                        type: GoogleCloudRunTrafficShift
+                        name: GoogleCloudRunTrafficShift_1
+                        identifier: GoogleCloudRunTrafficShift_1
+                        spec:
+                          connectorRef: <+input>
+                          revisionTrafficDetails:
+                            - revisionName: LATEST
+                              trafficValue: 100
+                            - revisionName: gcrdemo3-00001-t7j
+                              trafficValue: 20
+                          image: <+input>
+                        timeout: 10m
+                  name: Google Cloud Run Step Group
+                  identifier: Google_Cloud_Run_Step_Group
+                  sharedPaths:
+                    - /var/run
+                    - /var/lib/docker
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: <+input>
+                      namespace: harness-delegate-ng
+            rollbackSteps:
+              - stepGroup:
+                  identifier: Google_Cloud_Run_Rollback_Step_Group
+                  name: Google Cloud Run Rollback Step Group
+                  steps:
+                    - step:
+                        type: GoogleCloudRunRollback
+                        name: Google Cloud Run Rollback
+                        identifier: Google_Cloud_Run_Rollback
+                        spec:
+                          connectorRef: account.harnessImage
+                          image: ""
+                          imagePullPolicy: Always
+                        when:
+                          stageStatus: Success
+                        failureStrategies: []
+                  sharedPaths:
+                    - /var/run
+                    - /var/lib/docker
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: <+input>
+                      namespace: default
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
