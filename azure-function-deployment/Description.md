@@ -31,7 +31,7 @@ This pipeline is designed for the following use case:
 - **Resource Group**: Provide the Azure resource group for the deployment.
 - **Subscription ID**: Specify the Azure subscription ID.
 - [**Artifact Source**](https://developer.harness.io/docs/continuous-delivery/x-platform-cd-features/services/artifact-sources/): Specify your artifact source
-- **Container Image**: Provide the container image to deploy.
+- **Container Image**: Provide the [container image](https://learn.microsoft.com/en-us/azure/azure-functions/functions-how-to-custom-container?tabs=core-tools%2Cacr%2Cazure-cli2%2Cazure-cli&pivots=azure-functions) that contains azure function to deploy.
 - - **Kubernetes cluster for containerised step group**: Select the kubernetes cluster for container based execution for step group for Azure Function Step Group for Deploy and Rollback step.
 
 ### Creating Azure Connector 
