@@ -1,0 +1,13 @@
+infrastructureDefinition:
+  name: k8s-demo-infra
+  identifier: k8sdemoinfra
+  orgIdentifier: default
+  projectIdentifier: YOUR_PROJECT_IDENTIFIER
+  environmentRef: k8sdemoenv
+  deploymentType: Kubernetes
+  type: KubernetesDirect
+  spec:
+    connectorRef: k8sdemo
+    namespace: harness-delegate-ng
+    releaseName: release-<+INFRA_KEY_SHORT_ID>
+  allowSimultaneousDeployments: false
