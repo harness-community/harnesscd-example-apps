@@ -1,9 +1,22 @@
 # Last Successful Artifact Tag
+
 ## Feature Overview
 
 We have introduced a new expression, `<+lastSuccessfulDeployed.tag>`, which allows you to retrieve the tag version of the last successfully deployed artifact. This feature provides flexibility and consistency when managing artifact tags in your deployment pipelines.
 
-### Use Cases
+## Using the tag
+
+Navigate to **Servic**e configuration, either in the project settings or in the service tab in the pipeline.
+Under **Artifacts**, add a new artifact or edit the existing artifact. In the **Artifact Location**, set the Tag as expression or a Runtime-input.
+
+![](./static/setting-artifact.png)
+
+Now, while running the pipeline, set the tag expression as `<+lastSuccessfulDeployed.tag>`
+
+![](./static/runtime-input.png)
+
+## Use Cases
+
 1. Re-running Pipelines
 The `<+lastSuccessfulDeployed.tag>` expression can be used to fetch the artifact tag from the most recent successful deployment when re-running a pipeline. This ensures that the correct version is deployed without requiring manual input.
 
@@ -40,14 +53,3 @@ Note: This expression only resolved primary artifact tags. Sidecar artfact tags 
 For more information, go to [Harness Documentation](https://developer.harness.io/docs/continuous-delivery/x-platform-cd-features/services/artifact-sources/#runtime-input-for-the-latest-artifact-tag)
 
 This feature ensures seamless artifact versioning across stages and pipelines, reducing manual effort and increasing deployment accuracy.
-
-## Using the tag
-
-Navigate to **Servic**e configuration, either in the project settings or in the service tab in the pipeline.
-Under **Artifacts**, add a new artifact or edit the existing artifact. In the **Artifact Location**, set the Tag as expression or a Runtime-input.
-
-![](./static/setting-artifact.png)
-
-Now, while running the pipeline, set the tag expression as `<+lastSuccessfulDeployed.tag>`
-
-![](./static/runtime-input.png)
