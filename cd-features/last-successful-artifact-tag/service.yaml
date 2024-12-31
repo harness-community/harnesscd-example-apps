@@ -1,0 +1,37 @@
+service:
+  name: harness_guestbook
+  identifier: harnessguestbook
+  orgIdentifier: default
+  projectIdentifier: YOUR_PROJECT_IDENTIFIER
+  gitOpsEnabled: false
+  serviceDefinition:
+    type: Kubernetes
+    spec:
+      manifests:
+        - manifest:
+            identifier: guestbook
+            type: K8sManifest
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: YOUR_GITHUB_CONNECTOR
+                  gitFetchType: Branch
+                  paths:
+                    - guestbook/guestbook-ui-deployment.yaml
+                    - guestbook/guestbook-ui-svc.yaml
+                  repoName: harnesscd-example-apps
+                  branch: master
+                skipResourceVersioning: false
+                enableDeclarativeRollback: false
+      artifacts:
+        primary:
+          sources:
+            - spec:
+                connectorRef: YOUR_DOCKER_CONNECTOR
+                imagePath: YOUR_IMAGE_PATH
+                tag: <+input>
+                digest: ""
+              identifier: test_artifact
+              type: DockerRegistry
+          primaryArtifactRef: <+input>
