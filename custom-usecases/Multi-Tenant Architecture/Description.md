@@ -27,10 +27,9 @@ This pipeline demonstrates a multi-tenant deployment strategy using Harness, wit
     3. Run Step (Explicit Tenant URLs):
 
     - Extracts tenant-specific IPs from the tenant_ip_config.xml.
-    - Explicitly generates tenant URLs:
-        - TENANT_1_URL
-        - TENANT_2_URL
-        - TENANT_3_URL
+    - Explicitly generates tenant URLs for each tenant and stores them as output variables.
+    - These output variables (`TENANT_1_URL`, `TENANT_2_URL`, `TENANT_3_URL`) can be accessed in subsequent steps **within the same pipeline execution**.
+
         
 2. **Stage: s1 (Deployment Stage)**
 
@@ -61,3 +60,29 @@ This pipeline demonstrates a multi-tenant deployment strategy using Harness, wit
 
     - TENANT_1_URL, TENANT_2_URL, TENANT_3_URL: Explicit URLs generated for each tenant.
 
+## Note
+
+**Configuration Changes**
+
+- Modify the Configuration Files:
+    - Update tenant_project_X.xml and tenant_ip_config.xml to reflect your specific environments, infrastructures, and tenant IP details.
+
+- Modifications Needed in pipeline.yaml:
+
+    1. Project and Organization Settings:
+
+        - Update projectIdentifier and orgIdentifier to match your project and organization in Harness.
+        
+    2. Connector References:
+
+    - GitHub Connector: Update connectorRef: GitHub_connector to point to the connector configured for the Git repository where your configuration files (master_config.xml, tenant_project_X.xml, and tenant_ip_config.xml) are stored.
+    - Docker Connector: Update connectorRef: Docker_connector to point to the Docker connector configured to fetch container images for the Run steps.
+    
+    3. Paths for Configuration Files:
+
+        - In the Run step:
+            - Update MASTER_CONFIG to the correct path of your master configuration file (e.g., test-app/master_config.xml).
+            - Update TENANT_FILES_DIR to the directory where your tenant configuration files (tenant_project_X.xml) are stored.
+
+        - In the Run_2 step:
+            - Update TENANT_CONFIG_FILE to the path where your tenant IP configuration file (tenant_ip_config.xml) is stored.
