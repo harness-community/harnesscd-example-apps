@@ -24,11 +24,11 @@ This pipeline demonstrates a multi-tenant deployment strategy using Harness, wit
             - infrastructure: Comma-separated list of infrastructure names.
             - VALID_COMBINATIONS: A formatted string with valid combinations (e.g., env.infra).
 
-3. Run Step (Explicit Tenant URLs):
+    3. Run Step (Explicit Tenant URLs):
 
-   - Extracts tenant-specific IPs from the tenant_ip_config.xml.
-   - Explicitly generates tenant URLs for each tenant and stores them as output variables.
-   - These output variables (`TENANT_1_URL`, `TENANT_2_URL`, `TENANT_3_URL`) can be accessed in subsequent steps **within the same pipeline execution**.
+    - Extracts tenant-specific IPs from the tenant_ip_config.xml.
+    - Explicitly generates tenant URLs for each tenant and stores them as output variables.
+    - These output variables (`TENANT_1_URL`, `TENANT_2_URL`, `TENANT_3_URL`) can be accessed in subsequent steps **within the same pipeline execution**.
 
         
 2. **Stage: s1 (Deployment Stage)**
