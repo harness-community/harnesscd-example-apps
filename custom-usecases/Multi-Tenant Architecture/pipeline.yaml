@@ -53,11 +53,6 @@ pipeline:
                     command: |-
                       #!/bin/bash
 
-                      # Inputs: comma-separated lists or single values
-                      # TENANT_LIST="tenant_1,tenant_2"
-                      # COMPONENT="Macrims,Decisions"
-                      # ENV_NAME="prod,dev"
-
                       TENANT_LIST=<+pipeline.variables.TENANT_PROJECT>
                       COMPONENT=<+pipeline.variables.COMPONENT>
                       ENV_NAME=<+pipeline.variables.ENV_NAME>
