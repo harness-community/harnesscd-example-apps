@@ -1,0 +1,17 @@
+<Tenants>
+  <Tenant>
+    <TenantID>tenant_1</TenantID>
+    <IP>127.0.0.1</IP>
+    <Port>8080</Port>
+  </Tenant>
+  <Tenant>
+    <TenantID>tenant_2</TenantID>
+    <IP>192.168.0.1</IP>
+    <Port>8081</Port>
+  </Tenant>
+  <Tenant>
+    <TenantID>tenant_3</TenantID>
+    <IP>10.0.0.1</IP>
+    <Port>8082</Port>
+  </Tenant>
+</Tenants>

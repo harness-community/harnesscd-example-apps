@@ -1,0 +1,16 @@
+<MasterConfig>
+  <Tenants>
+    <Tenant>
+      <TenantID>tenant_1</TenantID>
+      <ConfigFile>tenant_project_1.xml</ConfigFile>
+    </Tenant>
+    <Tenant>
+      <TenantID>tenant_2</TenantID>
+      <ConfigFile>tenant_project_2.xml</ConfigFile>
+    </Tenant>
+    <Tenant>
+      <TenantID>tenant_3</TenantID>
+      <ConfigFile>tenant_project_3.xml</ConfigFile>
+    </Tenant>
+  </Tenants>
+</MasterConfig>

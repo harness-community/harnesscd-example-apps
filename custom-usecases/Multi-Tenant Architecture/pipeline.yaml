@@ -1,0 +1,392 @@
+pipeline:
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: GitHub_connector
+        build:
+          type: branch
+          spec:
+            branch: Your_Branch
+  stages:
+    - stage:
+        identifier: fetch_code
+        type: CI
+        name: fetch_code
+        description: ""
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+          buildIntelligence:
+            enabled: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: K8s_connector
+              namespace: namespace
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  identifier: GitClone_1
+                  type: GitClone
+                  name: GitClone
+                  spec:
+                    connectorRef: GitHub_connector
+                    build:
+                      type: branch
+                      spec:
+                        branch: Your_Branch
+              - step:
+                  type: Run
+                  name: Run
+                  identifier: Run
+                  spec:
+                    connectorRef: Docker_connector
+                    image: python:3.9
+                    shell: Bash
+                    command: |-
+                      #!/bin/bash
+
+                      # Inputs: comma-separated lists or single values
+                      # TENANT_LIST="tenant_1,tenant_2"
+                      # COMPONENT="Macrims,Decisions"
+                      # ENV_NAME="prod,dev"
+
+                      TENANT_LIST=<+pipeline.variables.TENANT_PROJECT>
+                      COMPONENT=<+pipeline.variables.COMPONENT>
+                      ENV_NAME=<+pipeline.variables.ENV_NAME>
+
+                      # Convert input lists to arrays
+                      IFS=',' read -r -a TENANT_ARRAY <<< "$TENANT_LIST"
+                      IFS=',' read -r -a COMPONENT_ARRAY <<< "$COMPONENT"
+                      IFS=',' read -r -a ENV_ARRAY <<< "$ENV_NAME"
+
+                      # Paths to the configuration files
+                      MASTER_CONFIG="test-app/master_config.xml"
+                      TENANT_FILES_DIR="test-app/tenant_config"
+
+                      # Validate master config existence
+                      if [ ! -f "$MASTER_CONFIG" ]; then
+                          echo "Error: Master configuration file not found at $MASTER_CONFIG!"
+                          exit 1
+                      fi
+
+                      # Define all known tenants
+                      ALL_TENANTS=("tenant_1" "tenant_2" "tenant_3")
+
+                      # Initialize variables for the comma-separated lists
+                      environment=""
+                      infrastructure=""
+
+                      # Loop through each tenant in the known list
+                      for TENANT_ID in "${ALL_TENANTS[@]}"; do
+                          echo "Processing Tenant ID: $TENANT_ID"
+
+                          # Check if the tenant is in the input tenant list
+                          if [[ " ${TENANT_ARRAY[@]} " =~ " $TENANT_ID " ]]; then
+                              # Extract the tenant file using Python
+                              TENANT_FILE=$(python3 -c "
+                      import xml.etree.ElementTree as ET
+                      try:
+                          tree = ET.parse('$MASTER_CONFIG')
+                          root = tree.getroot()
+                          tenant = root.find(\".//Tenant[TenantID='$TENANT_ID']\")
+                          print(tenant.find('ConfigFile').text if tenant is not None else '')
+                      except Exception as e:
+                          print('Error:', str(e))
+                          exit(1)")
+
+                              # Check if the tenant file was found
+                              if [ -z "$TENANT_FILE" ]; then
+                                  echo "Error: Tenant ID '$TENANT_ID' not found in the master config!"
+                                  continue
+                              fi
+
+                              TENANT_FILE_PATH="$TENANT_FILES_DIR/$TENANT_FILE"
+
+                              # Validate tenant file existence
+                              if [ ! -f "$TENANT_FILE_PATH" ]; then
+                                  echo "Error: Tenant configuration file not found at $TENANT_FILE_PATH!"
+                                  continue
+                              fi
+
+                              # Loop through each component
+                              for COMPONENT_NAME in "${COMPONENT_ARRAY[@]}"; do
+                                  echo "Processing Component: $COMPONENT_NAME"
+
+                                  # Loop through each environment
+                                  for ENV_NAME in "${ENV_ARRAY[@]}"; do
+                                      echo "Processing Environment: $ENV_NAME"
+
+                                      # Extract environment details for the component using Python
+                                      ENV_DETAILS=$(python3 -c "
+                      import xml.etree.ElementTree as ET
+                      try:
+                          tree = ET.parse('$TENANT_FILE_PATH')
+                          root = tree.getroot()
+                          component = root.find(\".//Component[Name='$COMPONENT_NAME']\")
+                          if component is not None:
+                              env = component.find(\".//Environment[Name='$ENV_NAME']\")
+                              if env is not None:
+                                  custom_env_name = env.find('CustomEnvName').text
+                                  infra = env.find('Infrastructure').text
+                                  print(f'{custom_env_name}:{infra}')
+                              else:
+                                  print('')
+                      except Exception as e:
+                          print('Error:', str(e))
+                          exit(1)")
+
+                                      # Check if the environment details were found
+                                      if [ -z "$ENV_DETAILS" ]; then
+                                          echo "Error: Environment '$ENV_NAME' not found for Component '$COMPONENT_NAME' in Tenant ID '$TENANT_ID'!"
+                                          continue
+                                      fi
+
+                                      # Split the environment details
+                                      IFS=":" read -r CUSTOM_ENV_NAME INFRASTRUCTURE_NAME <<< "$ENV_DETAILS"
+
+                                      # Check for empty values
+                                      if [ -z "$CUSTOM_ENV_NAME" ] || [ -z "$INFRASTRUCTURE_NAME" ]; then
+                                          echo "Error: Missing values for Environment Name or Infrastructure for Component '$COMPONENT_NAME' in Tenant ID '$TENANT_ID'."
+                                          continue
+                                      fi
+
+                                      # Append to the comma-separated lists
+                                      environment="${environment}${environment:+,}${CUSTOM_ENV_NAME}"
+                                      infrastructure="${infrastructure}${infrastructure:+,}${INFRASTRUCTURE_NAME}"
+
+                                      # Print the results for this environment
+                                      echo "Results for Tenant ID: $TENANT_ID, Component: $COMPONENT_NAME, Environment: $ENV_NAME"
+                                      echo "  Environment Name: $CUSTOM_ENV_NAME"
+                                      echo "  Infrastructure Name: $INFRASTRUCTURE_NAME"
+                                  done
+                              done
+                          else
+                              echo "Tenant ID '$TENANT_ID' not provided in the input tenant list. Skipping."
+                          fi
+                      done
+
+                      # Print final lists
+                      echo "Final Environment List: $environment"
+                      echo "Final Infrastructure List: $infrastructure"
+
+                      # Adding the variables as output variables
+                      environment="$environment"
+                      infrastructure="$infrastructure"
+
+                      valid_combinations=""
+
+                      # Re-process the environment and infrastructure lists to construct the formatted string
+                      IFS=',' read -r -a ENV_ARRAY <<< "$environment"
+                      IFS=',' read -r -a INFRA_ARRAY <<< "$infrastructure"
+
+                      if [ ${#ENV_ARRAY[@]} -eq ${#INFRA_ARRAY[@]} ]; then
+                          for i in "${!ENV_ARRAY[@]}"; do
+                              # Append the environment and infrastructure with a '.' separator
+                              valid_combinations="${valid_combinations}${valid_combinations:+,}${ENV_ARRAY[$i]}.${INFRA_ARRAY[$i]}"
+                          done
+                      else
+                          echo "Error: Mismatch in environment and infrastructure counts!"
+                          exit 1
+                      fi
+
+                      # Print the final formatted string
+                      echo "Valid Combinations: $valid_combinations"
+
+                      # Add the formatted string as an output variable
+                      VALID_COMBINATIONS="$valid_combinations"
+                    outputVariables:
+                      - name: environment
+                        type: String
+                        value: environment
+                      - name: infrastructure
+                        type: String
+                        value: infrastructure
+                      - name: VALID_COMBINATIONS
+                        type: String
+                        value: VALID_COMBINATIONS
+              - step:
+                  type: Run
+                  name: Run_2
+                  identifier: Run_2
+                  spec:
+                    connectorRef: docker_test
+                    image: python:3.9
+                    shell: Sh
+                    command: |-
+                      #!/bin/bash
+
+                      # Path to the tenant config XML file
+                      TENANT_CONFIG_FILE="test-app/tenant_ip_config.xml"
+
+                      # Validate tenant config file existence
+                      if [ ! -f "$TENANT_CONFIG_FILE" ]; then
+                          echo "Error: Tenant configuration file not found at $TENANT_CONFIG_FILE!"
+                          exit 1
+                      fi
+
+                      # Explicitly export URLs for each tenant using Python to fetch IPs
+                      TENANT_TENANT_1_URL=$(python3 -c "
+                      import xml.etree.ElementTree as ET
+                      try:
+                          tree = ET.parse('$TENANT_CONFIG_FILE')
+                          root = tree.getroot()
+                          tenant = root.find(\".//Tenant[TenantID='tenant_1']\")
+                          if tenant is not None:
+                              ip = tenant.find('IP').text
+                              print(f'https://{ip}/test/index.html')
+                          else:
+                              print('')
+                      except Exception as e:
+                          print(f'Error: {str(e)}')
+                          exit(1)
+                      ")
+                      export TENANT_TENANT_1_URL=$TENANT_TENANT_1_URL
+
+                      TENANT_TENANT_2_URL=$(python3 -c "
+                      import xml.etree.ElementTree as ET
+                      try:
+                          tree = ET.parse('$TENANT_CONFIG_FILE')
+                          root = tree.getroot()
+                          tenant = root.find(\".//Tenant[TenantID='tenant_2']\")
+                          if tenant is not None:
+                              ip = tenant.find('IP').text
+                              print(f'https://{ip}/test/index.html')
+                          else:
+                              print('')
+                      except Exception as e:
+                          print(f'Error: {str(e)}')
+                          exit(1)
+                      ")
+                      export TENANT_TENANT_2_URL=$TENANT_TENANT_2_URL
+
+                      TENANT_TENANT_3_URL=$(python3 -c "
+                      import xml.etree.ElementTree as ET
+                      try:
+                          tree = ET.parse('$TENANT_CONFIG_FILE')
+                          root = tree.getroot()
+                          tenant = root.find(\".//Tenant[TenantID='tenant_3']\")
+                          if tenant is not None:
+                              ip = tenant.find('IP').text
+                              print(f'https://{ip}/test/index.html')
+                          else:
+                              print('')
+                      except Exception as e:
+                          print(f'Error: {str(e)}')
+                          exit(1)
+                      ")
+                      export TENANT_TENANT_3_URL=$TENANT_TENANT_3_URL
+
+                      echo "Exported URLs:"
+                      TENANT_1_URL=$TENANT_TENANT_1_URL
+                      TENANT_2_URL=$TENANT_TENANT_2_URL
+                      TENANT_3_URL=$TENANT_TENANT_3_URL
+                    outputVariables:
+                      - name: TENANT_1_URL
+                        type: String
+                        value: TENANT_1_URL
+                      - name: TENANT_2_URL
+                        type: String
+                        value: TENANT_2_URL
+                      - name: TENANT_3_URL
+                        type: String
+                        value: TENANT_3_URL
+    - stage:
+        name: s1
+        identifier: s1
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: ownappservice_1
+          environment:
+            environmentRef: <+matrix.env>
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: <+matrix.infra>
+            failureStrategies: []
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_1
+                  identifier: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: echo "works"
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: MarkAsSuccess
+            rollbackSteps:
+              - step:
+                  name: Swap primary with stage service
+                  identifier: rollbackBgSwapServices
+                  type: K8sBGSwapServices
+                  timeout: 10m
+                  spec:
+                    skipDryRun: false
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: MarkAsSuccess
+        strategy:
+          matrix:
+            env: <+<+pipeline.variables.env_list>.split(',')>
+            infra: <+<+pipeline.variables.infra_list>.split(',')>
+        when:
+          pipelineStatus: Success
+          condition: <+pipeline.variables.VALID_COMBINATIONS>.contains("<+matrix.env>.<+matrix.infra>")
+  variables:
+    - name: TENANT_PROJECT
+      type: String
+      description: Provide the tenant_project_id
+      required: true
+      value: <+input>
+    - name: ENV_NAME
+      type: String
+      description: Enter the env where the deployment must take place (Prod, Stage, Test)
+      required: true
+      value: <+input>
+    - name: COMPONENT
+      type: String
+      description: ""
+      required: false
+      value: <+input>
+    - name: env_list
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.fetch_code.spec.execution.steps.Run.output.outputVariables.environment>
+    - name: infra_list
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.fetch_code.spec.execution.steps.Run.output.outputVariables.infrastructure>
+    - name: VALID_COMBINATIONS
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.fetch_code.spec.execution.steps.Run.output.outputVariables.VALID_COMBINATIONS>
+  identifier: MultiTenantInfrastructure_Clone3vishal_Clone
+  name: MultiTenant-Infrastructure - Clone-3-vishal - Clone
