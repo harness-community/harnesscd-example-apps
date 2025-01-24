@@ -1,0 +1,18 @@
+trigger:
+  name: TRIGGER_NAME
+  identifier: TRIGGER_ID
+  enabled: true
+  stagesToExecute: []
+  description: ""
+  tags: {}
+  orgIdentifier: default
+  projectIdentifier: PROJECT_ID
+  pipelineIdentifier: PIPELINE_ID
+  source:
+    type: Webhook
+    spec:
+      type: EventRelay
+      spec:
+        webhookIdentifier: WEBHOOK_ID
+        payloadConditions: []
+        headerConditions: []
