@@ -6,8 +6,8 @@ pipeline:
   orgIdentifier: default
   stages:
     - stage:
-        name: google_cloud_run
-        identifier: google_cloud_run
+        name: google_cloud_run_service
+        identifier: google_cloud_run_service
         description: ""
         type: Deployment
         spec:
@@ -113,3 +113,54 @@ pipeline:
                 - AllErrors
               action:
                 type: StageRollback
+    - stage:
+        name: google_cloud_run_job
+        identifier: google_cloud_run_job
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: GoogleCloudRun
+          service:
+            serviceRef: service_gcr
+            serviceInputs:
+              serviceDefinition:
+                type: GoogleCloudRun
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environment:
+            useFromStage:
+              stage: gcr_sample
+            infrastructureDefinitions:
+              - identifier: gcr_test_infra
+          execution:
+            steps:
+              - stepGroup:
+                  name: GCR Jobs
+                  identifier: GCR_Jobs
+                  steps:
+                    - step:
+                        type: GoogleCloudRunJob
+                        name: GoogleCloudRunJob
+                        identifier: GoogleCloudRunJob
+                        spec:
+                          connectorRef: DOCKERHUB_Connector
+                          image: harness/google-cloud-run-plugin:1.0.1-linux-amd64
+                          jobName: JOB_NAME
+                        timeout: 10m
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: GCP_KUBERNETES_CONNECTOR
+            rollbackSteps: []
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        delegateSelectors:
+          - GCP_KUBERNETES_CONNECTOR
