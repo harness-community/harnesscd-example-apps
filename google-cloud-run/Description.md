@@ -2,11 +2,18 @@
 
 ## Pipeline Overview
 
-This pipeline is designed for the following use case:
+This pipeline supports two deployment scenarios for Google Cloud Run:
 
-1. Deploy an application to Google Cloud Run.
-2. Shift traffic between revisions to ensure a seamless user experience.
-3. Provide rollback mechanisms in case of deployment failures.
+1. Deploying a Google Cloud Run Service
+
+- Deploy an application to Google Cloud Run.
+- Shift traffic between revisions to ensure a seamless user experience.
+- Provide rollback mechanisms in case of deployment failures.
+
+2. Executing a Google Cloud Run Job
+
+- Run a batch job on Google Cloud Run.
+- Ensure the job executes successfully based on defined criteria.
 
 ---
 
@@ -22,7 +29,7 @@ This pipeline is designed for the following use case:
 
 ## Pipeline Use Case Details
 
-**Stage 1: Deployment**
+**Stage 1: Service Deployment**
 
 **Objective**: Deploy an artifact to Google Cloud Run using Harness.
 
@@ -33,7 +40,7 @@ This pipeline is designed for the following use case:
 - **Kubernetes cluster for containerised step group**: Select the kubernetes cluster for container based execution for step group for Google Cloud Run Step Group and Google Cloud Run Rollback Step Group.
 - **Container Registry and Image**: Select Container registry and Image for Google cloud Run Deploy, Google Cloud Run Prepare Rollback Data, GoogleCloudRunTrafficShift_1.
 
-**Google Cloud Run Manifest File Structure**
+**Google Cloud Run Service Manifest File Structure**
 
 The manifest file defines the Google Cloud Run service :-
 
@@ -57,6 +64,41 @@ spec:
 ```
 ---
 
+**Stage 2: Job Deployment**
+
+**Objective**: Run a Cloud Run Job using Harness.
+
+**Inputs**:
+
+**Job Name**: Provide the name of the Cloud Run job to execute.
+
+**Container Configuration**
+**Container Registry**: Add a Harness Docker Registry connector to connect to Docker Hub
+**Image**: Enter the path, image, and tag for the image you want to run in this step. You can use public Harness plugin image `harness/google-cloud-run-plugin:1.0.1-linux-amd64`
+You can refer to [Harness DockerHub](https://hub.docker.com/r/harness/google-cloud-run-plugin/tags) for latest tag details.
+
+**Job Name**: Specify the name of the job you want to run.
+OR
+**Job Manifest**: Select Job Manifest when you want to deploy a new job or update an existing job using a manifest file.
+
+**Google Cloud Run Job Manifest File Structure**
+
+The manifest file defines the Google Cloud Run Job :-
+
+```yaml
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+spec:
+  template:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: JOB_NAME
+            image: CONTAINER_IMAGE_URL
+```
 ## Documentation
 
 - [Google Cloud Run](https://developer.harness.io/docs/continuous-delivery/deploy-srv-diff-platforms/google-cloud-functions/google-cloud-run/)
