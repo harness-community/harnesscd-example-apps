@@ -6,7 +6,7 @@ connector:
   projectIdentifier: default_project
   type: Github
   spec:
-    url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
+    url: https://github.com/deeptech/harnesscd-example-apps
     authentication:
       type: Http
       spec:
