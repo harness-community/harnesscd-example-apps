@@ -10,11 +10,11 @@ This pipeline is designed to send notifications to slack channel and slack threa
 
 ## Key Files and Their Purpose 
 
-- [**`slack-notify-step/pipeline.yaml`**](/slack-notify-step/pipeline.yaml): Harness pipeline YAML for Azure Function deployment.
+- [**`slack-notify-step/pipeline.yaml`**](https://github.com/harness-community/harnesscd-example-apps/blob/master/cd-features/slack-notify-step/pipeline.yaml): Harness pipeline YAML for Azure Function deployment.
 
 ## Setting Up a Slack Notify Step
 
-![](.cd-features/static/slack-notify-step.png)
+![](https://github.com/harness-community/harnesscd-example-apps/blob/master/cd-features/static/slack-notify-step.png)
 
 Follow the steps below to set up a Slack notify step:
 
