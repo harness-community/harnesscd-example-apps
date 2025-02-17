@@ -1,0 +1,103 @@
+pipeline:
+  projectIdentifier: Krishika_CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: custom_stage
+        identifier: custom_stage
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: Container
+                  name: Container_1
+                  identifier: Container_1
+                  spec:
+                    connectorRef: Dockerhub_Connector
+                    image: amazon/aws-cli:2.24.5
+                    command: |
+                      #!/bin/bash
+                      set -e
+
+                      export AWS_REGION="AWS_REGION"
+                      export AWS_ACCESS_KEY_ID="AWS_ACCESS_KEY_ID"
+                      export AWS_SECRET_ACCESS_KEY="AWS_SECRET_ACCESS_KEY"
+
+                      # -------------------------------
+                      
+                      # -------------------------------
+                      export AWS_REGION="AWS_REGION"                   # AWS region where your Lambda function is deployed
+                      export FUNCTION_NAME="FUNCTION_NAME"         # Name of your Lambda function
+                      export S3_BUCKET="S3_BUCKET"                   # S3 bucket containing your function package
+                      export S3_KEY="S3_KEY"            # S3 key (path) to the zipped function package
+                      export ROLE_ARN="ROLE_ARN"  # IAM role ARN for Lambda execution
+
+                      # -------------------------------
+                      # Example usage: Deploy or update AWS Lambda function
+                      # -------------------------------
+
+                      echo "Checking if Lambda function '$FUNCTION_NAME' exists in region $AWS_REGION..."
+                      if aws lambda get-function --function-name "$FUNCTION_NAME" --region "$AWS_REGION" > /dev/null 2>&1; then
+                          echo "Lambda function exists. Updating function code..."
+                          aws lambda update-function-code \
+                              --function-name "$FUNCTION_NAME" \
+                              --s3-bucket "$S3_BUCKET" \
+                              --s3-key "$S3_KEY" \
+                              --region "$AWS_REGION"
+                          echo "Lambda function code updated successfully."
+                      else
+                          echo "Lambda function does not exist. Creating a new function..."
+                          aws lambda create-function \
+                              --function-name "$FUNCTION_NAME" \
+                              --runtime python3.8 \             # Adjust runtime as needed
+                              --role "$ROLE_ARN" \
+                              --handler lambda_function.handler \  # Adjust handler as needed
+                              --code S3Bucket="$S3_BUCKET",S3Key="$S3_KEY" \
+                              --region "$AWS_REGION"
+                          echo "Lambda function created successfully."
+                      fi
+
+                      OUTPUT_FILE=$(mktemp)
+
+                      echo "Invoking Lambda function '$FUNCTION_NAME'..."
+                      aws lambda invoke \
+                        --function-name "$FUNCTION_NAME" \
+                        --region "$AWS_REGION" \
+                        --payload '{}' \
+                        "$OUTPUT_FILE"
+
+                      echo "Lambda invocation complete. Output:"
+                      cat "$OUTPUT_FILE"
+
+                      # Optionally, remove the temporary output file:
+                      rm "$OUTPUT_FILE"
+                    shell: Bash
+                    infrastructure:
+                      type: KubernetesDirect
+                      spec:
+                        connectorRef: Kubernetes_connector
+                        namespace: harness-delegate-ng
+                        resources:
+                          limits:
+                            cpu: "0.5"
+                            memory: 500Mi
+                        annotations: {}
+                        labels: {}
+                        containerSecurityContext:
+                          capabilities:
+                            drop: []
+                            add: []
+                        nodeSelector: {}
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths: []
+                    outputVariables: []
+                    envVariables: {}
+                  timeout: 5m
+        tags: {}
+  identifier: awslambda
+  name: aws-lambda
