@@ -3,7 +3,7 @@ connector:
   identifier: harnessk8sconnector
   description: ""
   orgIdentifier: default
-  projectIdentifier: default_project
+  projectIdentifier: test
   type: K8sCluster
   spec:
     credential:
