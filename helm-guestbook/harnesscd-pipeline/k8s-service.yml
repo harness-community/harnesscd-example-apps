@@ -1,28 +1,28 @@
 service:
-  name: harnessguestbookdep
-  identifier: harnessguestbookdep
-  orgIdentifier: default
-  projectIdentifier: default_project
+  identifier: "harnessguestbookdep"
+  orgIdentifier: "default"
+  name: "harnessguestbookdep"
   serviceDefinition:
-    type: Kubernetes
+    type: "Kubernetes"
     spec:
       manifests:
-        - manifest:
-            identifier: guestbook
-            type: HelmChart
-            spec:
-              store:
-                type: Github
-                spec:
-                  connectorRef: harnessgitconnector
-                  gitFetchType: Branch
-                  folderPath: /helm-guestbook
-                  repoName: harnesscd-example-apps
-                  branch: master
-              subChartPath: ""
-              valuesPaths:
-                - helm-guestbook/values.yaml
-              skipResourceVersioning: false
-              enableDeclarativeRollback: false
-              helmVersion: V3
+      - manifest:
+          identifier: "guestbook"
+          type: "HelmChart"
+          spec:
+            valuesPaths:
+            - "helm-guestbook/values.yaml"
+            subChartPath: ""
+            skipResourceVersioning: false
+            helmVersion: "V3"
+            store:
+              type: "Github"
+              spec:
+                folderPath: "/helm-guestbook"
+                connectorRef: "harnessgitconnector"
+                repoName: "harnesscd-example-apps"
+                gitFetchType: "Branch"
+                branch: "master"
+            enableDeclarativeRollback: false
+  projectIdentifier: "default_project"
   gitOpsEnabled: false
