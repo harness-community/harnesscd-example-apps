@@ -12,7 +12,7 @@ service:
                       store:
                         type: Github
                         spec:
-                            connectorRef: harnessgitconnector
+                            connectorRef: harness_gitconnector
                             gitFetchType: Branch
                             paths:
                                 - guestbook/guestbook-ui-deployment.yaml
