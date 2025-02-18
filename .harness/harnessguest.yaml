@@ -3,3 +3,6 @@ service:
   identifier: harnessguest
   orgIdentifier: default
   projectIdentifier: test
+  serviceDefinition:
+    spec: {}
+    type: Kubernetes
