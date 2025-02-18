@@ -1,0 +1,39 @@
+template:
+  name: aws-lambda
+  identifier: awslambda
+  versionLabel: v1
+  type: CustomDeployment
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  spec:
+    infrastructure:
+      variables: []
+      fetchInstancesScript:
+        store:
+          type: Inline
+          spec:
+            content: |+
+              #
+              # Script is expected to query Infrastructure and dump json
+              # in $INSTANCE_OUTPUT_PATH file path
+              #
+              # Harness is expected to initialize ${INSTANCE_OUTPUT_PATH}
+              # environment variable - a random unique file path on delegate,
+              # so script execution can save the result.
+              #
+
+              cat <<'_EOF_' > $${INSTANCE_OUTPUT_PATH}
+              {
+                  "data": []
+              }
+              _EOF_
+
+      instanceAttributes:
+        - name: instancename
+          jsonPath: server
+          description: ""
+      instancesListPath: data
+    execution:
+      stepTemplateRefs:
+        - aws_template

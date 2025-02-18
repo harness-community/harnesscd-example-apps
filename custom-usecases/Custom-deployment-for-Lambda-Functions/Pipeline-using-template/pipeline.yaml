@@ -1,0 +1,48 @@
+pipeline:
+  name: aws-lambda-using-template
+  identifier: awslambdausingtemplate
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: stage1
+        identifier: stage1
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: CustomDeployment
+          customDeploymentRef:
+            templateRef: awslambda
+            versionLabel: v1
+          service:
+            serviceRef: test123
+          execution:
+            steps:
+              - step:
+                  name: Fetch Instances
+                  identifier: fetchInstances
+                  type: FetchInstanceScript
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  name: lambda-test
+                  identifier: lambdatest
+                  template:
+                    templateRef: aws_template
+                    versionLabel: v1
+            rollbackSteps: []
+          environment:
+            environmentRef: test_env
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: test_infra
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        delegateSelectors:
+          - kubernetes-delegate

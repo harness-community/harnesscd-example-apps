@@ -1,0 +1,40 @@
+pipeline:
+  name: slack_notify
+  identifier: slack_notify
+  projectIdentifier: PROJECT_ID
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: slack
+        identifier: slack
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - stepGroup:
+                  name: container
+                  identifier: container
+                  steps:
+                    - step:
+                        type: SlackNotify
+                        name: SlackNotify_1
+                        identifier: SlackNotify_1
+                        spec:
+                          channel: CHANNEL_ID
+                          blocks: |-
+                            [    {        "type": "header", 
+                                                    "text":           { "type"
+                                                        : "plain_text", "text": "Header"
+                                       }     }]
+                          token: SLACK_TOKEN
+                          threadTs: THREAD_ID
+                  stepGroupInfra:
+                    type: KubernetesDirect
+                    spec:
+                      connectorRef: KUBERNETES_CONNECTOR
+                      namespace: default
+            rollbackSteps: []
+          serviceDependencies: []
+        tags: {}
