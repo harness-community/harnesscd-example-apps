@@ -4,7 +4,7 @@ environment:
   description: ""
   tags: {}
   type: PreProduction
-  orgIdentifier: test
-  projectIdentifier: default_project
+  orgIdentifier: default
+  projectIdentifier: test
   variables: []
  
