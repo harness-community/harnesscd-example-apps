@@ -1,0 +1,5 @@
+service:
+  name: harnessguest
+  identifier: harnessguest
+  orgIdentifier: default
+  projectIdentifier: test
