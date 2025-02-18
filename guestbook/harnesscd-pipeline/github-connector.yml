@@ -1,9 +1,9 @@
 connector:
   name: harness_gitconnector
-  identifier: harnessgitconnector
+  identifier: harness_gitconnector
   description: ""
   orgIdentifier: default
-  projectIdentifier: default_project
+  projectIdentifier: test
   type: Github
   spec:
     url: https://github.com/GITHUB_USERNAME/harnesscd-example-apps
