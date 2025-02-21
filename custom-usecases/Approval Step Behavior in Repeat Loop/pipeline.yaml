@@ -1,0 +1,62 @@
+pipeline:
+  name: Approval Handling Repeat Loop
+  identifier: Approval_Handling_Repeat_Loop
+  projectIdentifier: Krishika_CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: s2
+        identifier: s2
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - stepGroup:
+                  name: HarnessApprovalRepeat
+                  identifier: HarnessApprovalRepeat
+                  steps:
+                    - step:
+                        type: HarnessApproval
+                        name: HarnessApproval_2
+                        identifier: HarnessApproval_2
+                        spec:
+                          approvalMessage: Please review the following information and approve the pipeline progression
+                          includePipelineExecutionHistory: true
+                          isAutoRejectEnabled: false
+                          approvers:
+                            userGroups:
+                              - callback_test_user
+                            minimumCount: 1
+                            disallowPipelineExecutor: false
+                          approverInputs: []
+                        timeout: 1d
+                    - step:
+                        type: ShellScript
+                        name: ShellScript_1
+                        identifier: ShellScript_1
+                        spec:
+                          shell: Bash
+                          executionTarget: {}
+                          source:
+                            type: Inline
+                            spec:
+                              script: echo hello
+                          environmentVariables: []
+                          outputVariables: []
+                        timeout: 10m
+                        when:
+                          stageStatus: Success
+                          condition: <+pipeline.stages.s2.spec.execution.steps.HarnessApprovalRepeat<+stepGroup.identifierPostFix>.steps.HarnessApproval_2.status> == "SUCCEEDED"
+                  strategy:
+                    repeat:
+                      maxConcurrency: 1
+                      items:
+                        - 1st_Approval
+                        - 2nd_Approval
+                        - 3rd_Approval
+                    onFailure: SkipQueued
+            rollbackSteps: []
+          serviceDependencies: []
+        tags: {}
