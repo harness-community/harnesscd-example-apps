@@ -1,0 +1,52 @@
+pipeline:
+  name: K8s Traffic Routing config
+  identifier: k8strafficrouting
+  stages:
+    - stage:
+        name: stage-1
+        identifier: stage1
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: k8s_service
+          environment:
+            environmentRef: K8sEnv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: K8sInfra
+          execution:
+            steps:
+              - step:
+                  type: K8sTrafficRouting
+                  name: K8sTrafficRouting
+                  identifier: K8sTrafficRoutingConfig
+                  spec:
+                    type: config
+                    trafficRouting:
+                      spec:
+                        rootService: example-stable-service
+                        routes:
+                          - route:
+                              type: http
+                              name: my-http-route
+                              destinations:
+                                - destination:
+                                    host: example-canary-service
+                                    weight: 20
+                                - destination:
+                                    host: example-stable-service
+                                    weight: 80
+                        name: trafficsplits.split.smi-spec.io
+                      provider: smi
+            rollbackSteps: []
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        skipCondition: ""
+  projectIdentifier: YourProject
+  orgIdentifier: default
+  tags: {}
