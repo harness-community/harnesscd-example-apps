@@ -121,3 +121,12 @@ You can link the Google Artifact Registry to your subscription using various met
    
 3. **Cloud Functions or Cloud Run**:  
    Implement an event-driven architecture by using **Pub/Sub** in combination with services like **Cloud Functions** or **Cloud Run** to react to changes.
+
+
+### Ability to Use Any Repo Name in Pipeline Webhook Trigger
+
+Harness supports **organization-wide GitHub webhooks**, enabling you to trigger pipelines from **any repository**. You can further refine which repositories trigger your pipeline by **filtering** on the **Header**, **Payload**, or using **JEXL** conditions.
+
+For more information on setting up an organization-wide GitHub webhook, see the [GitHub Documentation](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-an-organization-webhook).
+
+**Note:** You must have **Org Owner** permissions in GitHub to create organization-level webhooks.
