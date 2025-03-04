@@ -97,7 +97,7 @@ This can also be achieved with Nexus 3 Artifactory.
 5. In the **Trigger Settings**, under **Conditions**, you can configure the folder name where you want to detect changes.
 
 
-### 4. Google Pub/Sub Trigger Support: NPM Google Artifact Registry and Generic Google Artifact Registry
+### 4. Google Pub/Sub Trigger Support: NPM Google Artifact Registry, Generic Google Artifact Registry, OCI Helm registry 
 
 This is possible using **Google Cloud Platform's Pub/Sub service**.
 
@@ -108,6 +108,9 @@ This is possible using **Google Cloud Platform's Pub/Sub service**.
 5. Paste a sample payload and click **Publish** to verify that your webhook can listen to the event.
 
 For more information on creating a topic and subscription, refer to the [Pub/Sub Documentation](https://cloud.google.com/pubsub/docs/publish-message-overview).
+
+**Note**: For using an OCI Helm registry with Google Artifact Registry, refer to the [Google Docs on Helm](https://cloud.google.com/artifact-registry/docs/helm).
+
 
 #### Linking Google Artifact Registry to Your Subscription
 
