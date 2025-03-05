@@ -1,0 +1,237 @@
+pipeline:
+  name: ASG_Deployment_multiEnv_SingleService
+  identifier: ASG_Deployment_multiEnv_SingleService
+  projectIdentifier: Krishika_CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: custom_1
+        identifier: custom_1
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_2
+                  identifier: ShellScript_2
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          # my_variable="us-west-2-chi-sharedservices-<+matrix.Environments>-<+matrix.Segments>-chi-<+matrix.Environments>"
+                          my_variable="uswest2chisharedservices<+matrix.Environments><+matrix.Segments>chi<+matrix.Environments>"
+                          echo "$my_variable"
+                    environmentVariables: []
+                    outputVariables:
+                      - name: env_name_fetched
+                        type: String
+                        value: my_variable
+                  timeout: 10m
+        tags: {}
+        when:
+          pipelineStatus: Success
+        strategy:
+          matrix:
+            Segments: <+<+pipeline.variables.Segments>.split(',')>
+            Environments: <+<+pipeline.variables.Environments>.split(',')>
+    - stage:
+        name: custom_2
+        identifier: custom_2
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_1
+                  identifier: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          t='<+json.format(<+pipeline.stages.custom_1>)>'
+
+                          export ENV_NAMES=$(echo $t | jq -r '[.. | objects | select(.outcome.output.outputVariables.env_name_fetched?) | .outcome.output.outputVariables.env_name_fetched] | join(",")')
+
+                          echo $ENV_NAMES
+
+                          # Extract environment names as an array
+                          readarray -t env_array < <(echo "$t" | jq -r '[.. | objects | select(.outcome.output.outputVariables.env_name_fetched?) | .outcome.output.outputVariables.env_name_fetched] | .[]')
+
+                          echo "Extracted Environment Names:"
+                          printf '%s\n' "${env_array[@]}"
+
+                          # API Details
+                          API_URL="https://app.harness.io/ng/api/infrastructures"
+                          ACCOUNT_ID="ACCOUNT_ID"
+                          ORG_ID="ORG_ID"
+                          PROJECT_ID="PROJECT_ID"
+                          API_KEY="PAT_TOKEN"
+
+                          # Declare empty arrays
+                          valid_combinations=()
+                          infra_list=()  # Stores only infra identifiers
+
+                          # Loop through each environment name and call the API
+                          for env in "${env_array[@]}"; do
+                              echo "Fetching infra for environment: $env"
+
+                              # Construct the API URL dynamically with the environment name
+                              response=$(curl -s --location "$API_URL?page=0&size=100&accountIdentifier=$ACCOUNT_ID&orgIdentifier=$ORG_ID&projectIdentifier=$PROJECT_ID&environmentIdentifier=$env" \
+                                  --header "x-api-key: $API_KEY")
+
+                              # Extract infra identifier from the API response
+                              infra_id=$(echo "$response" | jq -r '.data.content[0].infrastructure.identifier')
+
+                              # Check if infra_id is valid
+                              if [[ -n "$infra_id" && "$infra_id" != "null" ]]; then
+                                  valid_combinations+=("$env:$infra_id")
+                                  infra_list+=("$infra_id")  # Push infra_id to infra_list
+                              fi
+                          done
+
+                          # Convert arrays to comma-separated strings
+                          valid_combinations_str=$(IFS=,; echo "${valid_combinations[*]}")
+                          infra_list_str=$(IFS=,; echo "${infra_list[*]}")
+
+                          # Print and store the final values
+                          echo "Valid Combinations: $valid_combinations_str"
+                          export VALID_COMBINATIONS="$valid_combinations_str"
+
+                          echo "Infra List: $infra_list_str"
+                          export INFRA_LIST="$infra_list_str"
+                    environmentVariables: []
+                    outputVariables:
+                      - name: ENV_NAMES
+                        type: String
+                        value: ENV_NAMES
+                      - name: INFRA_LIST
+                        type: String
+                        value: INFRA_LIST
+                      - name: VALID_COMBINATIONS
+                        type: String
+                        value: VALID_COMBINATIONS
+                    delegateSelectors:
+                      - harnessci-cd-ng-prod
+                  timeout: 10m
+              - step:
+                  type: ShellScript
+                  name: ShellScript_2
+                  identifier: ShellScript_2
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: export items="infra1"
+                    environmentVariables: []
+                    outputVariables:
+                      - name: items
+                        type: String
+                        value: items
+                  timeout: 10m
+        tags: {}
+    - stage:
+        name: s1
+        identifier: s1
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Asg
+          service:
+            serviceRef: ASGService
+            serviceInputs:
+              serviceDefinition:
+                type: Asg
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_1
+                  identifier: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          echo hello
+
+                          echo <+pipeline.stages.s1<+strategy.identifierPostFix>.spec.infrastructure.infraRef>
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+            rollbackSteps:
+              - step:
+                  name: Asg Rolling Rollback
+                  identifier: AsgRollingRollback
+                  type: AsgRollingRollback
+                  timeout: 10m
+                  spec: {}
+          environment:
+            environmentRef: <+matrix.env_names>
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: <+matrix.infra_names>
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        when:
+          pipelineStatus: Success
+          condition: <+pipeline.variables.valid_combinations>.contains("<+matrix.env_names>:<+matrix.infra_names>")
+        strategy:
+          matrix:
+            env_names: <+<+pipeline.variables.env_names>.split(',')>
+            infra_names: <+<+pipeline.variables.infra_name>.split(',')>
+  variables:
+    - name: Segments
+      type: String
+      description: ""
+      required: false
+      value: <+input>.allowedValues(cpe,css,cie)
+    - name: Qualifiers
+      type: String
+      description: ""
+      required: false
+      value: chi
+    - name: Environments
+      type: String
+      description: ""
+      required: false
+      value: <+input>.allowedValues(dev,sit,rit)
+    - name: env_names
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom_2.spec.execution.steps.ShellScript_1.output.outputVariables.ENV_NAMES>
+    - name: infra_name
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom_2.spec.execution.steps.ShellScript_1.output.outputVariables.INFRA_LIST>
+    - name: valid_combinations
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom_2.spec.execution.steps.ShellScript_1.output.outputVariables.VALID_COMBINATIONS>
