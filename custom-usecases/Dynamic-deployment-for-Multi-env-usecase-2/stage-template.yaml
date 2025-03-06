@@ -1,0 +1,44 @@
+template:
+  name: test-asg
+  identifier: testasg
+  versionLabel: v1
+  type: Stage
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  spec:
+    type: Deployment
+    spec:
+      deploymentType: Asg
+      service:
+        serviceRef: <+input>
+        serviceInputs: <+input>
+      environmentGroup:
+        envGroupRef: devenvironmentgroup
+        metadata:
+          parallel: true
+        deployToAll: true
+        environments: <+input>
+      execution:
+        steps:
+          - step:
+              type: ShellScript
+              name: ShellScript_1
+              identifier: ShellScript_1
+              spec:
+                shell: Bash
+                executionTarget: {}
+                source:
+                  type: Inline
+                  spec:
+                    script: echo "hi"
+                environmentVariables: []
+                outputVariables: []
+              timeout: 10m
+        rollbackSteps: []
+    failureStrategies:
+      - onFailure:
+          errors:
+            - AllErrors
+          action:
+            type: StageRollback
