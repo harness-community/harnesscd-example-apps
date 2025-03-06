@@ -1,0 +1,125 @@
+pipeline:
+  name: asg-usecase-2
+  identifier: asgusecase2
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deploy-dev-env-group
+        identifier: deploy2
+        description: Deploy to Dev Environment Group
+        type: Pipeline
+        spec:
+          org: default
+          pipeline: asgdeployenvgroups_manualselect
+          project: Krishika_CD_Samples
+          inputs:
+            identifier: asgdeployenvgroups_manualselect
+            stages:
+              - stage:
+                  identifier: deploy
+                  type: Deployment
+                  spec:
+                    service:
+                      serviceInputs:
+                        serviceDefinition:
+                          type: Asg
+                          spec:
+                            artifacts:
+                              primary:
+                                primaryArtifactRef: <+input>
+                                sources: <+input>
+                    environmentGroup:
+                      environments:
+                        - environmentRef: uswest2chisharedservicesdevciechirit
+                          deployToAll: false
+                        - environmentRef: uswest2chisharedservicesdevcpechirit
+                          deployToAll: false
+                        - environmentRef: uswest2chisharedservicesdevcsschirit
+                          deployToAll: false
+        tags: {}
+    - stage:
+        name: deploy-sit-env-group
+        identifier: deploy3
+        description: Deploy to Sit Environment Group
+        type: Pipeline
+        spec:
+          org: default
+          pipeline: asgdeployenvgroups_manualselect
+          project: Krishika_CD_Samples
+          inputs:
+            identifier: asgdeployenvgroups_manualselect
+            stages:
+              - stage:
+                  identifier: deploy
+                  type: Deployment
+                  spec:
+                    service:
+                      serviceInputs:
+                        serviceDefinition:
+                          type: Asg
+                          spec:
+                            artifacts:
+                              primary:
+                                primaryArtifactRef: <+input>
+                                sources: <+input>
+                    environmentGroup:
+                      environments:
+                        - environmentRef: uswest2chisharedservicesdevciechirit
+                          deployToAll: false
+                        - environmentRef: uswest2chisharedservicesdevcpechirit
+                          deployToAll: false
+                        - environmentRef: uswest2chisharedservicesdevcsschirit
+                          deployToAll: false
+        tags: {}
+    - stage:
+        name: deploy-rit-env-group
+        identifier: deployritenvgroup
+        description: Deploy to Rit Environment Group
+        type: Pipeline
+        spec:
+          org: default
+          pipeline: asgdeployenvgroups_manualselect
+          project: Krishika_CD_Samples
+          inputs:
+            identifier: asgdeployenvgroups_manualselect
+            stages:
+              - stage:
+                  identifier: deploy
+                  type: Deployment
+                  spec:
+                    service:
+                      serviceInputs:
+                        serviceDefinition:
+                          type: Asg
+                          spec:
+                            artifacts:
+                              primary:
+                                primaryArtifactRef: <+input>
+                                sources: <+input>
+                    environmentGroup:
+                      envGroupRef: <+input>
+                      deployToAll: <+input>
+                      environments: <+input>
+        tags: {}
+    - stage:
+        name: template
+        identifier: template
+        tags: {}
+        template:
+          templateRef: testasg
+          versionLabel: v1
+          templateInputs:
+            type: Deployment
+            spec:
+              service:
+                serviceRef: <+input>
+                serviceInputs: <+input>
+              environmentGroup:
+                environments:
+                  - environmentRef: uswest2chisharedservicesdevcpechidev
+                    deployToAll: false
+                  - environmentRef: uswest2chisharedservicesdevcsschidev
+                    deployToAll: false
+  allowStageExecutions: true
