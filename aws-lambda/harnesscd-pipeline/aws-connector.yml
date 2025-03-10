@@ -1,22 +1,25 @@
 connector:
-  name: aws-lambda
-  identifier: awslambda
+  name: aws-connector
+  identifier: aws-connector
   description: ""
-  orgIdentifier: default
-  projectIdentifier: default_project
+  accountIdentifier: your_account_id
+  orgIdentifier: your_org_id
+  projectIdentifier: your_project_id
   type: Aws
   spec:
     credential:
       type: ManualConfig
       spec:
-        accessKey: AWS_ACCESS_KEY
-        secretKeyRef: awssecret
-      region: CLOUD_REGION_NAME
+        accessKey: your_aws_account_access_key
+        secretKeyRef: your_aws_account_secret_key
+        sessionTokenRef: your_aws_account_session_token
+      region: AWS_REGION
     awsSdkClientBackOffStrategyOverride:
-      type: FixedDelayBackoffStrategy
+      type: EqualJitterBackoffStrategy
       spec:
-        fixedBackoff: 0
+        baseDelay: 1
+        maxBackoffTime: 1
         retryCount: 1
-    delegateSelectors:
-      - DELEGATE_NAME
-    executeOnDelegate: true
+    executeOnDelegate: false
+    proxy: false
+    ignoreTestConnection: false
