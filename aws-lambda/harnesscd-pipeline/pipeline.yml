@@ -1,32 +1,32 @@
 pipeline:
-  name: native-aws-lambda
-  identifier: nativeawslambda
-  projectIdentifier: default_project
+  name: your_pipeline_name
+  identifier: your_pipeline_id
+  projectIdentifier: your_project_id
   orgIdentifier: default
   tags: {}
   stages:
     - stage:
-        name: deploy-lambda
-        identifier: deploylambda
+        name: lambda_deploy
+        identifier: lambda_deploy
         description: ""
         type: Deployment
         spec:
           deploymentType: AwsLambda
           service:
-            serviceRef: awslambdaservice
+            serviceRef: lambdafunction
             serviceInputs:
               serviceDefinition:
                 type: AwsLambda
                 spec:
                   artifacts:
                     primary:
-                      primaryArtifactRef: ""
+                      primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: serverlessenv
+            environmentRef: lambda_env
             deployToAll: false
             infrastructureDefinitions:
-              - identifier: awslambdainfra
+              - identifier: awsinfra
           execution:
             steps:
               - step:
@@ -34,9 +34,7 @@ pipeline:
                   identifier: deployawslambda
                   type: AwsLambdaDeploy
                   timeout: 10m
-                  spec:
-                    delegateSelectors:
-                      - DELEGATE_NAME
+                  spec: {}
             rollbackSteps:
               - step:
                   name: Aws Lambda rollback

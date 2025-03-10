@@ -1,32 +1,30 @@
 service:
-  name: aws-lambda-service
-  identifier: awslambdaservice
+  name: lambda-function
+  identifier: lambdafunction
   serviceDefinition:
     type: AwsLambda
     spec:
       manifests:
         - manifest:
-            identifier: functiondefinition
+            identifier: lambdasample
             type: AwsLambdaFunctionDefinition
             spec:
               store:
-                type: Github
+                type: Harness
                 spec:
-                  connectorRef: serverlessgitconnector
-                  gitFetchType: Branch
-                  paths:
-                    - aws-lambda/function-definition.json
-                  repoName: harnesscd-example-apps
-                  branch: master
+                  files:
+                    - /lambdaFunctions/lambda_func_hello_world
       artifacts:
         primary:
+          primaryArtifactRef: <+input>
           sources:
             - spec:
-                connectorRef: awslambda
-                bucketName: CLOUD_BUCKET_NAME
-                region: CLOUD_REGION_NAME
-                filePath: hello_world.zip
-              identifier: ArtifactIdentifier
+                connectorRef: your-aws-connector
+                bucketName: your-bucket-name
+                region: your_aws_region
+                filePath: lambda-functions/hello_world.zip
+              identifier: awslambda
               type: AmazonS3
-          primaryArtifactRef: <+input>
   gitOpsEnabled: false
+  orgIdentifier: your_org_id
+  projectIdentifier: your_project_id
