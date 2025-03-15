@@ -1,0 +1,427 @@
+pipeline:
+  identifier: asg
+  name: asg
+  projectIdentifier: Krishika_CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        identifier: custom1
+        type: Custom
+        name: custom1
+        description: ""
+        spec:
+          execution:
+            steps:
+              - step:
+                  identifier: ShellScript_1
+                  type: ShellScript
+                  name: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          #!/bin/bash
+
+                          # Capture input from Harness runtime variable
+                          INPUT_STRING="<+pipeline.variables.env_data>"
+
+                          # Debug: Print the received input
+                          echo "Received input: $INPUT_STRING"
+
+                          # Check if input is missing
+                          if [[ -z "$INPUT_STRING" || "$INPUT_STRING" == "null" ]]; then
+                              echo "Error: No input data provided from Harness pipeline variable!"
+                              exit 1
+                          fi
+
+                          # Initialize an associative array to store environment lists
+                          declare -A ENV_LISTS
+
+                          # Process each environment block (split by `|`)
+                          IFS='|' read -ra ENV_BLOCKS <<< "$INPUT_STRING"
+
+                          for ENV_BLOCK in "${ENV_BLOCKS[@]}"; do
+                              # Extract environment name
+                              ENV_NAME=$(echo "$ENV_BLOCK" | cut -d':' -f1)
+
+                              # Validate ENV_NAME is not empty
+                              if [[ -z "$ENV_NAME" ]]; then
+                                  echo "Error: Extracted environment name is empty! Skipping..."
+                                  continue
+                              fi
+
+                              # Extract Segments and Qualifiers
+                              SEGMENTS=$(echo "$ENV_BLOCK" | grep -oP '(?<=Segments=)[^;|]+' | tr ',' ' ')
+                              QUALIFIERS=$(echo "$ENV_BLOCK" | grep -oP '(?<=Qualifiers=)[^;|]+' | tr ',' ' ')
+
+                              echo "Processing Environment: $ENV_NAME"
+                              echo "  Segments: $SEGMENTS"
+                              echo "  Qualifiers: $QUALIFIERS"
+
+                              # Skip processing if values are missing
+                              if [[ -z "$SEGMENTS" || -z "$QUALIFIERS" ]]; then
+                                  echo "  Warning: Missing Segments or Qualifiers for $ENV_NAME. Skipping."
+                                  continue
+                              fi
+
+                              # Generate environment names
+                              ENV_NAME_LIST=()
+                              for SEGMENT in $SEGMENTS; do
+                                  for QUALIFIER in $QUALIFIERS; do
+                                      ENV_NAME_LIST+=("us-west-2-chi-sharedservices-$ENV_NAME-$SEGMENT-$QUALIFIER-$ENV_NAME")
+                                  done
+                              done
+
+                              # Convert list to a properly formatted string
+                              OUTPUT_CSV=$(IFS=,; echo "${ENV_NAME_LIST[*]}")
+
+                              # Store in an associative array
+                              ENV_LISTS["$ENV_NAME"]="$OUTPUT_CSV"
+                          done
+
+                          # Declare explicit variables for each environment list
+                          for KEY in "${!ENV_LISTS[@]}"; do
+                              eval "ENV_LIST_$KEY='${ENV_LISTS[$KEY]}'"
+                          done
+
+                          # Explicitly export all environment lists
+                          echo "===== Exporting All ENV Lists ====="
+                          for KEY in "${!ENV_LISTS[@]}"; do
+                              EXPORT_STATEMENT="export ENV_LIST_$KEY=\"${ENV_LISTS[$KEY]}\""
+                              echo "$EXPORT_STATEMENT"
+                              eval "$EXPORT_STATEMENT"
+                          done
+
+                          # Print final exported values using variables
+                          echo "===== Final Exported Values ====="
+                          for KEY in "${!ENV_LISTS[@]}"; do
+                              VAR_NAME="ENV_LIST_$KEY"
+                              echo "$VAR_NAME=${!VAR_NAME}"
+                          done
+                    environmentVariables: []
+                    outputVariables:
+                      - name: ENV_LIST_dev
+                        type: String
+                        value: ENV_LIST_dev
+                      - name: ENV_LIST_sit
+                        type: String
+                        value: ENV_LIST_sit
+                  timeout: 10m
+              - step:
+                  type: ShellScript
+                  name: ShellScript_2
+                  identifier: ShellScript_2
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          # Capture input
+                          ENV_NAMES="<+pipeline.variables.ENV_LIST_dev>"
+
+                          echo "Received Environment Names: $ENV_NAMES"
+
+                          # Convert comma-separated values to an array
+                          IFS=',' read -r -a env_array <<< "$ENV_NAMES"
+
+                          # Debug: Print extracted environment names
+                          echo "Extracted Environment Names:"
+                          printf '%s\n' "${env_array[@]}"
+
+                          # API Details
+                          API_URL="https://app.harness.io/ng/api/infrastructures"
+                          ACCOUNT_ID="ACCOUNT_ID"
+                          ORG_ID="default"
+                          PROJECT_ID="PROJECT_ID"
+                          API_KEY="pat.vpC"
+
+                          # Declare empty arrays
+                          valid_combinations=()
+                          infra_list=()  # Stores only infra identifiers
+
+                          # Loop through each environment name and call the API
+                          for env in "${env_array[@]}"; do
+                              echo "Fetching infra for environment: $env"
+
+                              # Construct the API URL dynamically with the environment name
+                              response=$(curl -s --location "$API_URL?page=0&size=100&accountIdentifier=$ACCOUNT_ID&orgIdentifier=$ORG_ID&projectIdentifier=$PROJECT_ID&environmentIdentifier=$env" \
+                                  --header "x-api-key: $API_KEY")
+
+                              # Debug: Print API response
+                              echo "API Response for $env:"
+                              echo "$response" | jq  # Pretty print response (if jq is installed)
+
+                              # Extract infra identifier from the API response
+                              infra_id=$(echo "$response" | jq -r '.data.content[0].infrastructure.identifier')
+
+                              # Debug: Print extracted infra_id
+                              echo "Extracted infra_id for $env: $infra_id"
+
+                              # Check if infra_id is valid
+                              if [[ -n "$infra_id" && "$infra_id" != "null" ]]; then
+                                  valid_combinations+=("$env:$infra_id")
+                                  infra_list+=("$infra_id")  # Push infra_id to infra_list
+                              else
+                                  echo "Warning: No valid infrastructure found for $env"
+                              fi
+                          done
+
+                          # Convert arrays to comma-separated strings
+                          valid_combinations_str=$(IFS=,; echo "${valid_combinations[*]}")
+                          infra_list_str=$(IFS=,; echo "${infra_list[*]}")
+
+                          # Print and store the final values
+                          # echo "Valid Combinations: $valid_combinations_str"
+                          # export VALID_COMBINATIONS_dev="$valid_combinations_str"
+
+                          # echo "Infra List: $infra_list_str"
+                          # export INFRA_LIST_dev="$infra_list_str"
+
+                          # hardcoding the values for this example:
+
+                          export VALID_COMBINATIONS_dev="us-west-2-chi-sharedservices-dev-cpe-chi-dev:infra1,us-west-2-chi-sharedservices-dev-css-chi-dev:infra2"
+                          export INFRA_LIST_dev="infra1, infra2"
+                    environmentVariables: []
+                    outputVariables:
+                      - name: VALID_COMBINATIONS_dev
+                        type: String
+                        value: VALID_COMBINATIONS_dev
+                      - name: INFRA_LIST_dev
+                        type: String
+                        value: INFRA_LIST_dev
+                  timeout: 10m
+              - step:
+                  type: ShellScript
+                  name: ShellScript_3
+                  identifier: ShellScript_3
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          # Capture input
+                          ENV_NAMES="<+pipeline.variables.ENV_LIST_sit>"
+
+                          echo "Received Environment Names: $ENV_NAMES"
+
+                          # Convert comma-separated values to an array
+                          IFS=',' read -r -a env_array <<< "$ENV_NAMES"
+
+                          # Debug: Print extracted environment names
+                          echo "Extracted Environment Names:"
+                          printf '%s\n' "${env_array[@]}"
+
+                          # API Details
+                          API_URL="https://app.harness.io/ng/api/infrastructures"
+                          ACCOUNT_ID="ACCOUNT_ID"
+                          ORG_ID="default"
+                          PROJECT_ID="PROJECT_ID"
+                          API_KEY="pat.vpC"
+
+                          # Declare empty arrays
+                          valid_combinations=()
+                          infra_list=()  # Stores only infra identifiers
+
+                          # Loop through each environment name and call the API
+                          for env in "${env_array[@]}"; do
+                              echo "Fetching infra for environment: $env"
+
+                              # Construct the API URL dynamically with the environment name
+                              response=$(curl -s --location "$API_URL?page=0&size=100&accountIdentifier=$ACCOUNT_ID&orgIdentifier=$ORG_ID&projectIdentifier=$PROJECT_ID&environmentIdentifier=$env" \
+                                  --header "x-api-key: $API_KEY")
+
+                              # Debug: Print API response
+                              echo "API Response for $env:"
+                              echo "$response" | jq  # Pretty print response (if jq is installed)
+
+                              # Extract infra identifier from the API response
+                              infra_id=$(echo "$response" | jq -r '.data.content[0].infrastructure.identifier')
+
+                              # Debug: Print extracted infra_id
+                              echo "Extracted infra_id for $env: $infra_id"
+
+                              # Check if infra_id is valid
+                              if [[ -n "$infra_id" && "$infra_id" != "null" ]]; then
+                                  valid_combinations+=("$env:$infra_id")
+                                  infra_list+=("$infra_id")  # Push infra_id to infra_list
+                              else
+                                  echo "Warning: No valid infrastructure found for $env"
+                              fi
+                          done
+
+                          # Convert arrays to comma-separated strings
+                          valid_combinations_str=$(IFS=,; echo "${valid_combinations[*]}")
+                          infra_list_str=$(IFS=,; echo "${infra_list[*]}")
+
+                          # Print and store the final values
+                          # echo "Valid Combinations: $valid_combinations_str"
+                          # export VALID_COMBINATIONS_dev="$valid_combinations_str"
+
+                          # echo "Infra List: $infra_list_str"
+                          # export INFRA_LIST_dev="$infra_list_str"
+
+                          # hardcoding the values for this example:
+
+                          export VALID_COMBINATIONS_sit="us-west-2-chi-sharedservices-dev-cpe-chi-dev:infra1"
+                          export INFRA_LIST_sit="infra1"
+                    environmentVariables: []
+                    outputVariables:
+                      - name: VALID_COMBINATIONS_sit
+                        type: String
+                        value: VALID_COMBINATIONS_sit
+                      - name: INFRA_LIST_sit
+                        type: String
+                        value: INFRA_LIST_sit
+                  timeout: 10m
+        tags: {}
+    - parallel:
+        - stage:
+            name: deploy_stage_dev_env
+            identifier: deploy_stage_dev_env
+            description: ""
+            type: Deployment
+            spec:
+              deploymentType: Asg
+              service:
+                serviceRef: ASGService
+                serviceInputs:
+                  serviceDefinition:
+                    type: Asg
+                    spec:
+                      artifacts:
+                        primary:
+                          primaryArtifactRef: <+input>
+                          sources: <+input>
+              environment:
+                environmentRef: <+matrix.ENV_LIST_dev>
+                deployToAll: false
+                infrastructureDefinitions:
+                  - identifier: <+matrix.INFRA_LIST_dev>
+              execution:
+                steps:
+                  - step:
+                      type: ShellScript
+                      name: ShellScript_1
+                      identifier: ShellScript_1
+                      spec:
+                        shell: Bash
+                        executionTarget: {}
+                        source:
+                          type: Inline
+                          spec:
+                            script: echo "running steps"
+                        environmentVariables: []
+                        outputVariables: []
+                      timeout: 10m
+                rollbackSteps: []
+            tags: {}
+            failureStrategies:
+              - onFailure:
+                  errors:
+                    - AllErrors
+                  action:
+                    type: StageRollback
+            when:
+              pipelineStatus: Success
+              condition: <+pipeline.variables.VALID_COMBINATIONS_dev>.contains("<+matrix.ENV_LIST_dev>:<+matrix.INFRA_LIST_dev>")
+            strategy:
+              matrix:
+                env_names: <+<+pipeline.variables.ENV_LIST_dev>.split(',')>
+                infra_names: <+<+pipeline.variables.INFRA_LIST_dev>.split(',')>
+        - stage:
+            name: deploy_stage_sit_env
+            identifier: deploy_stage_sit
+            description: ""
+            type: Deployment
+            spec:
+              deploymentType: Asg
+              service:
+                serviceRef: ASGService
+                serviceInputs:
+                  serviceDefinition:
+                    type: Asg
+                    spec:
+                      artifacts:
+                        primary:
+                          primaryArtifactRef: <+input>
+                          sources: <+input>
+              environment:
+                environmentRef: <+matrix.ENV_LIST_dev>
+                deployToAll: false
+                infrastructureDefinitions:
+                  - identifier: <+matrix.INFRA_LIST_dev>
+              execution:
+                steps:
+                  - step:
+                      type: ShellScript
+                      name: ShellScript_1
+                      identifier: ShellScript_1
+                      spec:
+                        shell: Bash
+                        executionTarget: {}
+                        source:
+                          type: Inline
+                          spec:
+                            script: echo "running steps"
+                        environmentVariables: []
+                        outputVariables: []
+                      timeout: 10m
+                rollbackSteps: []
+            tags: {}
+            failureStrategies:
+              - onFailure:
+                  errors:
+                    - AllErrors
+                  action:
+                    type: StageRollback
+            when:
+              pipelineStatus: Success
+              condition: <+pipeline.variables.VALID_COMBINATIONS_dev>.contains("<+matrix.ENV_LIST_sit>:<+matrix.INFRA_LIST_sit>")
+            strategy:
+              matrix:
+                env_names: <+<+pipeline.variables.ENV_LIST_sit>.split(',')>
+                infra_names: <+<+pipeline.variables.INFRA_LIST_sit>.split(',')>
+  variables:
+    - name: env_data
+      type: String
+      description: ""
+      required: false
+      value: dev:Segments=cpe,css;Qualifiers=chi|sit:Segments=cpe;Qualifiers=chi
+    - name: ENV_LIST_dev
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_1.output.outputVariables.ENV_LIST_dev>
+    - name: ENV_LIST_sit
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_1.output.outputVariables.ENV_LIST_sit>
+    - name: INFRA_LIST_dev
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_2.output.outputVariables.INFRA_LIST_dev>
+    - name: VALID_COMBINATIONS_dev
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_2.output.outputVariables.VALID_COMBINATIONS_dev>
+    - name: INFRA_LIST_sit
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_3.output.outputVariables.INFRA_LIST_sit>
+    - name: VALID_COMBINATIONS_sit
+      type: String
+      description: ""
+      required: false
+      value: <+pipeline.stages.custom1.spec.execution.steps.ShellScript_3.output.outputVariables.VALID_COMBINATIONS_sit>

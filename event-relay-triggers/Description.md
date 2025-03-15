@@ -128,7 +128,7 @@ You can link the Google Artifact Registry to your subscription using various met
 
 ### 5. Ability to Use Any Repo Name in Pipeline Webhook Trigger
 
-Harness supports **organization-wide GitHub webhooks**, enabling you to trigger pipelines from **any repository**. You can further refine which repositories trigger your pipeline by **filtering** on the **Header**, **Payload**, or using **JEXL** conditions.
+Harness supports GitHub webhooks configured at the **Organization level**, enabling you to trigger pipelines based on changes across **multiple repositories**. You can further filter webhook events by specifying conditions such as repository names, branches, file paths, and commit details in your webhook triggers.
 
 For more information on setting up an organization-wide GitHub webhook, see the [GitHub Documentation](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks#creating-an-organization-webhook).
 
