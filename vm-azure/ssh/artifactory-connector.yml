@@ -5,7 +5,7 @@ connector:
   projectIdentifier: default_project
   type: Artifactory
   spec:
-    artifactoryServerUrl: https://harness.jfrog.io/artifactory
+    artifactoryServerUrl: https://harness-artifactory-ovh.harness.io/artifactory
     auth:
       type: Anonymous
     executeOnDelegate: false
