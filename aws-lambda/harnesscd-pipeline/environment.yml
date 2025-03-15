@@ -1,9 +1,8 @@
 environment:
-  name: serverless-env
-  identifier: serverlessenv
+  name: lambda_env
+  identifier: lambda_env
   description: ""
   tags: {}
   type: Production
-  orgIdentifier: default
-  projectIdentifier: default_project
-  variables: []
+  orgIdentifier: your_org_id
+  projectIdentifier: your_project_id

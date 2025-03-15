@@ -1,0 +1,54 @@
+pipeline:
+  projectIdentifier: projectIdentifier
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deploy
+        identifier: deploy
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Asg
+          service:
+            serviceRef: ASGService
+            serviceInputs:
+              serviceDefinition:
+                type: Asg
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: <+input>
+                      sources: <+input>
+          environmentGroup:
+            envGroupRef: ritenvironmentgroup
+            metadata:
+              parallel: true
+            deployToAll: true
+            environments: <+input>
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: ShellScript_1
+                  identifier: ShellScript_1
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: echo "deploying"
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+            rollbackSteps: []
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  identifier: asgdeployenvgroups_manualselect
+  name: asg-deploy-env-groups - manual-select
