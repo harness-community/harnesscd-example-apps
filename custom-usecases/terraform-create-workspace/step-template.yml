@@ -1,0 +1,71 @@
+template:
+  name: check_tfe_workspace
+  identifier: check_tfe_workspace
+  versionLabel: v1
+  type: Step
+  projectIdentifier: projectID
+  orgIdentifier: default
+  tags: {}
+  spec:
+    timeout: 10m
+    type: ShellScript
+    spec:
+      shell: Bash
+      executionTarget: {}
+      delegateSelectors: []
+      source:
+        type: Inline
+        spec:
+          script: |
+            #!/bin/bash
+
+            # Dynamic Variables (from Harness Pipeline)
+            ORG_NAME="<+pipeline.variables.org_name>" # dynamic suffix Terraform Cloud org name
+            WORKSPACE_PREFIX="<+pipeline.variables.workspace_prefix>" dynamic prefix
+            WORKSPACE_SUFFIX="<+pipeline.variables.workspace_suffix>" # dynamic suffix
+            WORKSPACE_NAME="${WORKSPACE_PREFIX}${WORKSPACE_SUFFIX}"
+            TFE_TOKEN="<+secrets.getValue("-tfe_token")>"
+
+            # Check if workspace exists using explicit HTTP status
+            response=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              --header "Authorization: Bearer ${TFE_TOKEN}" \
+              "https://app.terraform.io/api/v2/organizations/${ORG_NAME}/workspaces/${WORKSPACE_NAME}")
+
+            if [ "$response" -eq 200 ]; then
+              echo " Workspace '${WORKSPACE_NAME}' already exists."
+            elif [ "$response" -eq 404 ]; then
+              echo " Workspace '${WORKSPACE_NAME}' does not exist. Creating it now..."
+
+              create_response=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+                --header "Authorization: Bearer ${TFE_TOKEN}" \
+                --header "Content-Type: application/vnd.api+json" \
+                --request POST \
+                --data '{
+                  "data": {
+                    "attributes": {
+                      "name": "'"${WORKSPACE_NAME}"'"
+                    },
+                    "type": "workspaces"
+                  }
+                }' \
+                "https://app.terraform.io/api/v2/organizations/${ORG_NAME}/workspaces")
+
+              if [ "$create_response" -eq 201 ]; then
+                echo " Workspace '${WORKSPACE_NAME}' has been successfully created!"
+              else
+                echo " Error: Failed to create workspace. HTTP status code: $create_response"
+                exit 1
+              fi
+
+            else
+              echo " Error: Unexpected response while checking workspace. HTTP status code: $response"
+              exit 1
+            fi
+
+            # Outputs the Terraform workspace name as an output variable, allowing it to be referenced in subsequent pipeline steps.
+            workspace_name="$WORKSPACE_NAME"
+      environmentVariables: []
+      outputVariables:
+        - name: workspace_name
+          type: String
+          value: workspace_name
