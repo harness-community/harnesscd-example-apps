@@ -51,7 +51,7 @@ Harness will translate these weights into a `TrafficSplit` object (`trafficsplit
 1. **Stage 1**  
    - **Deployment Type**: Kubernetes  
    - **Service**: References a Harness Kubernetes Service (`k8s_service`) which should contain or reference your Kubernetes manifests.  
-   - **Environment**: Points to the `vishalsamplepipeline` environment, using an infrastructure definition (`vishalk8sinfra`) that connects to the target Kubernetes cluster.
+   - **Environment**: Points to the `samplepipeline` environment, using an infrastructure definition (`k8sinfra`) that connects to the target Kubernetes cluster.
 
 2. **Execution Steps**  
    - **K8sTrafficRouting Step (type: config)**: Configures an SMI-based `TrafficSplit`.  
