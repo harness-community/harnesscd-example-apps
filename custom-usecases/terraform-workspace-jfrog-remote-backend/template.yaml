@@ -1,0 +1,138 @@
+template:
+  name: TFE_workspace_JFrog_backend
+  identifier: TFE_workspace_JFrog_backend
+  versionLabel: v1
+  type: Step
+  projectIdentifier: project_id
+  orgIdentifier: default
+  tags: {}
+  spec:
+    timeout: 10m
+    type: ShellScript
+    spec:
+      shell: Bash
+      executionTarget: {}
+      delegateSelectors: []
+      source:
+        type: Inline
+        spec:
+          script: |
+            #!/bin/bash
+            set -e
+
+            # -------------- Dynamic Variables --------------
+            ORG_NAME="test-org"
+            WORKSPACE_PREFIX="mypref-"
+            WORKSPACE_SUFFIX="<+pipeline.variables.workspace_suffix>"
+            WORKSPACE_NAME="${WORKSPACE_PREFIX}${WORKSPACE_SUFFIX}"
+
+            TFE_TOKEN="<+secrets.getValue("tfe_token")>"
+            IDENTITY_TOKEN="<+secrets.getValue("jfrog_identity_token")>"
+
+            ARTIFACTORY_URL="https://trial49k1qy.jfrog.io/artifactory"
+            REPO_NAME="terraform-states-generic-local"
+            STATE_FILE_PATH="${WORKSPACE_NAME}/state.tfstate"
+            LOCK_FILE_PATH="${WORKSPACE_NAME}/lock"
+
+            echo "Checking if TFE workspace '${WORKSPACE_NAME}' exists..."
+
+            # -------------- Check/Create TFE Workspace --------------
+            tfe_response=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              --header "Authorization: Bearer ${TFE_TOKEN}" \
+              "https://app.terraform.io/api/v2/organizations/${ORG_NAME}/workspaces/${WORKSPACE_NAME}")
+
+            if [ "$tfe_response" -eq 200 ]; then
+              echo "✅ Terraform Cloud workspace '${WORKSPACE_NAME}' already exists."
+            elif [ "$tfe_response" -eq 404 ]; then
+              echo "🔧 Workspace '${WORKSPACE_NAME}' does not exist. Creating it in TFE..."
+
+              create_response=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+                --header "Authorization: Bearer ${TFE_TOKEN}" \
+                --header "Content-Type: application/vnd.api+json" \
+                --request POST \
+                --data '{
+                  "data": {
+                    "attributes": {
+                      "name": "'"${WORKSPACE_NAME}"'"
+                    },
+                    "type": "workspaces"
+                  }
+                }' \
+                "https://app.terraform.io/api/v2/organizations/${ORG_NAME}/workspaces")
+
+              if [ "$create_response" -eq 201 ]; then
+                echo "✅ Workspace '${WORKSPACE_NAME}' successfully created in TFE."
+              else
+                echo "❌ Failed to create TFE workspace. HTTP status code: $create_response"
+                exit 1
+              fi
+            else
+              echo "❌ Unexpected error checking TFE workspace. Status: $tfe_response"
+              exit 1
+            fi
+
+            # -------------- Check/Upload Empty State File in JFrog --------------
+            echo "Checking if state file exists in Artifactory..."
+
+            state_response=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${IDENTITY_TOKEN}" \
+              "${ARTIFACTORY_URL}/${REPO_NAME}/${STATE_FILE_PATH}")
+
+            if [ "$state_response" -eq 200 ]; then
+              echo "✅ State file '${STATE_FILE_PATH}' already exists in Artifactory."
+            elif [ "$state_response" -eq 404 ]; then
+              echo "🗂️ State file '${STATE_FILE_PATH}' does not exist. Creating it..."
+
+              echo "{}" > empty.tfstate
+              upload_state=$(curl -s -o /dev/null -w "%{http_code}" \
+                -X PUT \
+                -H "Authorization: Bearer ${IDENTITY_TOKEN}" \
+                -T empty.tfstate \
+                "${ARTIFACTORY_URL}/${REPO_NAME}/${STATE_FILE_PATH}")
+
+              if [ "$upload_state" -eq 200 ] || [ "$upload_state" -eq 201 ]; then
+                echo "✅ State file created successfully in Artifactory."
+              else
+                echo "❌ Failed to upload state file. Status: $upload_state"
+                exit 1
+              fi
+            else
+              echo "❌ Unexpected error checking state file. Status: $state_response"
+              exit 1
+            fi
+
+            # -------------- Upload Lock File Placeholder --------------
+            echo "Creating lock file placeholder (if needed)..."
+            echo "{}" > empty.lock
+
+            upload_lock=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X PUT \
+              -H "Authorization: Bearer ${IDENTITY_TOKEN}" \
+              -T empty.lock \
+              "${ARTIFACTORY_URL}/${REPO_NAME}/${LOCK_FILE_PATH}")
+
+            if [ "$upload_lock" -eq 200 ] || [ "$upload_lock" -eq 201 ]; then
+              echo "✅ Lock file placeholder uploaded successfully."
+            else
+              echo "❌ Failed to upload lock file. Status: $upload_lock"
+              exit 1
+            fi
+
+            # -------------- Output vars for pipeline context --------------
+            echo "WORKSPACE_NAME=${WORKSPACE_NAME}"
+            echo "STATE_FILE_PATH=${STATE_FILE_PATH}"
+
+            workspace_name="$WORKSPACE_NAME"
+            tfstate_file_path="$STATE_FILE_PATH"
+            lock_file_path="$LOCK_FILE_PATH"
+      environmentVariables: []
+      outputVariables:
+        - name: workspace_name
+          type: String
+          value: WORKSPACE_NAME
+        - name: state_file_path
+          type: String
+          value: STATE_FILE_PATH
+        - name: lock_file_path
+          type: String
+          value: LOCK_FILE_PATH
