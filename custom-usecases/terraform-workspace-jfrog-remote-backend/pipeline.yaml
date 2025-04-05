@@ -1,0 +1,43 @@
+pipeline:
+  name: tf_jfrog
+  identifier: tf_jfrog
+  projectIdentifier: project_id
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: stage_1
+        identifier: stage_1
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  name: tfe_workspace
+                  identifier: tfe_workspace
+                  template:
+                    templateRef: jfrog_remote_workspace2
+                    versionLabel: v1
+  variables:
+    - name: WORKSPACE_SUFFIX
+      type: String
+      description: ""
+      required: false
+      value: <+input>
+  properties:
+    ci:
+      codebase:
+        repoName: test
+        build: <+input>
