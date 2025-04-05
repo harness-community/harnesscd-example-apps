@@ -1,57 +1,135 @@
-# Terraform Workspace + Remote State Management Step Template
+# Terraform Cloud Workspace Bootstrap with Remote Backend (Harness CI)
 
-## Overview
+This pipeline demonstrates how to **dynamically create or select a Terraform workspace**, and **run a Terraform plan and apply** using **Harness Pipeline**. It integrates with **Terraform Cloud (TFC)** as the execution engine and uses **remote state storage** in a supported backend (e.g., JFrog, Terraform Cloud, etc.).
 
-This step template helps you automatically create a Terraform workspace in Terraform Cloud (or Enterprise) **and** prepare a remote backend using **JFrog Artifactory** to store the state and lock files. It provides a hybrid workflow where Terraform Cloud handles logical workspace management while Artifactory serves as the remote state backend — ideal for cloud-agnostic infrastructure strategies.
+---
 
-## Use Case Solved
+##  What This Pipeline Does
 
-- You're using **Terraform Cloud (TFC)** or **Terraform Enterprise (TFE)** to manage your infrastructure workflow and logical workspaces.
-- You want to **store the actual state files in a separate remote backend** like JFrog Artifactory, rather than in Terraform Cloud.
-- You need to **dynamically create Terraform workspaces** and ensure the corresponding Artifactory structure (state and lock files) is initialized before provisioning.
+1. Accepts a `WORKSPACE_SUFFIX` as runtime input to define a target workspace (e.g., `dev`).
+2. Initializes the Terraform backend.
+3. Automatically selects the first available remote workspace (if prompted).
+4. Dynamically creates a new workspace if it does not already exist.
+5. Runs `terraform plan` and `apply` in that workspace.
 
-## What This Template Does
+---
 
-- Checks if a Terraform Cloud workspace exists based on a prefix and dynamic suffix.
-- If the workspace doesn't exist:
-  - Creates it using the Terraform Cloud API.
-  - Creates an empty `state.tfstate` file and `lock` file in a JFrog Artifactory directory named after the workspace.
-- If the workspace already exists:
-  - Skips creation and prints a confirmation message.
-- Outputs the workspace name and Artifactory state file path as pipeline variables for use in subsequent steps.
+##  Pre-requisites
 
-## How to Use
+### 1. Secrets Configured in Harness
 
-1. Add this step template to your Harness pipeline.
-2. Set the pipeline variables:
-   - `workspace_prefix`
-   - `workspace_suffix`
-   - `org_name` (Terraform Cloud organization)
-3. Configure Harness secrets:
-   - `tfe_token` (Terraform Cloud API token)
-   - `jfrog_identity_token` (Bearer token for Artifactory access)
-4. Use the output variables (`WORKSPACE_NAME`, `STATE_FILE_PATH`) in Terraform init and apply stages that reference the Artifactory backend.
+Ensure the following secrets are configured:
+- `harness_jfrog_identity_token`: Token to authenticate with your Terraform backend (e.g., `harness.jfrog.io`).
 
-## Requirements
+### 2. At Least One Workspace Must Exist Remotely
 
-- A **Terraform Cloud or Enterprise** account with an API token.
-- A **JFrog Artifactory** instance with a Generic repository configured.
-- Valid **identity token** for pushing files to Artifactory.
-- Harness secrets setup for both Terraform Cloud and Artifactory credentials.
+Before this pipeline runs, you must ensure that **at least one workspace already exists** in your remote backend (e.g., JFrog or Terraform Cloud).
 
-## Example Scenario
+**Why?**
 
-If your workspace prefix is `mypref-` and the dynamic suffix is `dev`, this template:
+Terraform prompts for workspace selection (`terraform init`) only when multiple workspaces exist. If **none exist**, `terraform init` will fail with an error and halt the pipeline.
 
-- Creates a Terraform Cloud workspace named `mypref-dev` (if not already present).
-- Initializes remote storage for the workspace in Artifactory:
+You can manually create a placeholder workspace ahead of time, or bootstrap one via a different initialization process.
 
-Here’s how the Terraform Cloud workspace and the JFrog Artifactory repository would look after the workspace creation and remote backend initialization:
+---
 
-**JFrog Repository Structure**
+## Pipeline Variables
 
-![](../static/tfe-workspaces.png)
+| Variable           | Description                              |
+|--------------------|------------------------------------------|
+| `WORKSPACE_SUFFIX` | Suffix used to dynamically name the workspace (e.g., `dev20`) |
 
-**Terraform Cloud Workspace**
+---
 
-![](../static/jfrog-repo.png)
+##  Terraform Code (`main.tf`)
+
+This Terraform code is stored in a **Harness Code Repository** and is cloned using the **CI Build stage** of the pipeline.
+
+```hcl
+terraform {
+  backend "remote" {
+    hostname     = "harness.jfrog.io"
+    organization = "da-dev-tf-test"
+    workspaces {
+      prefix = "mypref-"
+    }
+  }
+}
+
+provider "local" {}
+
+resource "local_file" "test_file" {
+  content  = "This is a test file created by Terraform!"
+  filename = "terraform_output.txt"
+}
+```
+
+---
+
+##  Pipeline Shell Script Breakdown
+
+```sh
+export TF_TOKEN_harness_jfrog_io="<+secrets.getValue("harness_jfrog_identity_token")>"
+WORKSPACE_NAME=<+pipeline.variables.WORKSPACE_SUFFIX>
+```
+- Sets the authentication token required for Terraform CLI to connect to the remote backend (`harness.jfrog.io`).
+- Dynamically constructs the workspace name using the provided suffix.
+
+---
+
+```sh
+rm -rf .terraform
+printf "1\n" | terraform init -reconfigure
+```
+- Cleans up previous Terraform state/cache.
+- Initializes the backend and **auto-selects the first workspace** in non-interactive mode to skip manual input.
+
+---
+
+```sh
+if terraform workspace list | grep -q "${WORKSPACE_NAME}"; then
+  terraform workspace select "${WORKSPACE_NAME}"
+else
+  terraform workspace new "${WORKSPACE_NAME}"
+fi
+```
+- Lists available workspaces.
+- Selects the target workspace if it exists, or creates it if not.
+
+---
+
+```sh
+terraform plan
+terraform apply -auto-approve
+```
+- Runs the Terraform plan and immediately applies it without manual approval.
+
+---
+
+##  Example
+
+If you input:
+```yaml
+WORKSPACE_SUFFIX: dev20
+```
+
+The pipeline will:
+- Attempt to initialize Terraform in the backend
+- Automatically pick the first available workspace
+- Create/select the workspace `mypref-dev`
+- Apply the Terraform configuration
+
+---
+
+##  Notes
+
+- The backend configuration (`main.tf`) is stored in the codebase and must be cloned by the pipeline build stage.
+- This setup assumes you're working with CLI-driven Terraform execution, **not remote execution in TFC**.
+
+---
+
+##  YAML references
+
+- YAML for [step-template](./template.yaml)
+
+- YAML for [Harness Pipelines](./pipeline.yaml)
