@@ -1,0 +1,80 @@
+pipeline:
+  name: pipeline_name
+  identifier: pipeline_id
+  projectIdentifier: project_id
+  orgIdentifier: org_id
+  tags: {}
+  stages:
+    - stage:
+        name: DeployBG
+        identifier: DeployBG
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: Asg
+          service:
+            serviceRef: AsgService_6SIiP
+            serviceInputs:
+              serviceDefinition:
+                type: Asg
+                spec:
+                  artifacts:
+                    primary:
+                      primaryArtifactRef: AMI-ARTIFACT
+          environment:
+            environmentRef: AsgEnv
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: AsgInfra
+          execution:
+            steps:
+              - stepGroup:
+                  name: Blue Green Deployment
+                  identifier: blueGreenDeployment
+                  steps:
+                    - step:
+                        name: Asg Blue Green Deploy
+                        identifier: AsgBlueGreenDeploy
+                        type: AsgBlueGreenDeploy
+                        timeout: 15m
+                        spec:
+                          instances:
+                            type: Fixed
+                            spec:
+                              min: 1
+                              max: 1
+                              desired: 1
+                          loadBalancers:
+                            - loadBalancer: asg-test
+                              prodListener: arn:...
+                              prodListenerRuleArn: arn:..
+                    - step:
+                        name: AsgShiftTraffic30
+                        identifier: AsgShiftTraffic30
+                        type: AsgShiftTraffic
+                        timeout: 15m
+                        spec:
+                          weight: 30
+                          downsizeOldAsg: false
+                    - step:
+                        name: AsgShiftTraffic100
+                        identifier: AsgShiftTraffic100
+                        type: AsgShiftTraffic
+                        timeout: 15m
+                        spec:
+                          weight: 100
+                          downsizeOldAsg: true
+            rollbackSteps:
+              - step:
+                  name: Asg Blue Green Rollback
+                  identifier: AsgBlueGreenRollback
+                  type: AsgBlueGreenRollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback

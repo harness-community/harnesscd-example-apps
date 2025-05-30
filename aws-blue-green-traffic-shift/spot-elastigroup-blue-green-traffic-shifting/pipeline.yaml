@@ -1,0 +1,254 @@
+pipeline:
+  name: pipeline_name
+  identifier: pipeline_id
+  projectIdentifier: project_id
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        identifier: spot
+        type: Deployment
+        name: spot
+        description: ""
+        spec:
+          deploymentType: Elastigroup
+          service:
+            serviceRef: spotService
+          environment:
+            environmentRef: spot
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: infra
+          execution:
+            steps:
+              - step:
+                  identifier: Elastigroup_BGSetup
+                  type: ElastigroupBGStageSetup
+                  name: Elastigroup Blue Green Stage Setup
+                  timeout: 15m
+                  spec:
+                    name: <+stage.variables.serviceName>
+                    instances:
+                      type: Fixed
+                      spec:
+                        desired: 1
+                        max: 1
+                        min: 1
+                    connectedCloudProvider:
+                      type: AWS
+                      spec:
+                        connectorRef: aws
+                        region: us-east-1
+                    loadBalancers:
+                      - type: AWSLoadBalancerConfig
+                        spec:
+                          loadBalancer: Spot
+                          prodListenerPort: <+stage.variables.prodPort>
+                          prodListenerRuleArn: <+stage.variables.prodRule>
+                          isTrafficShift: true
+                          stageTargetGroupArn: <+secrets.getValue('stageTargetGroup')>
+              - step:
+                  identifier: Before_Swap
+                  type: ShellScript
+                  name: Before Swap
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: <+input>
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+              - stepGroup:
+                  identifier: Stage_Environment_Traffic_Shifting
+                  name: Stage Environment Traffic Shifting
+                  strategy:
+                    matrix:
+                      maxConcurrency: 1
+                      weight:
+                        - 50
+                        - 100
+                  steps:
+                    - step:
+                        identifier: HarnessApproval_1
+                        type: HarnessApproval
+                        name: HarnessApproval_1
+                        spec:
+                          approvalMessage: Please review the following information and approve the pipeline progression
+                          includePipelineExecutionHistory: true
+                          isAutoRejectEnabled: false
+                          approvers:
+                            userGroups:
+                              - account._account_all_users
+                            minimumCount: 1
+                            disallowPipelineExecutor: false
+                          approverInputs: []
+                        timeout: 1d
+                    - step:
+                        identifier: ElastigroupBlueGreenTrafficShift
+                        type: ElastigroupBlueGreenTrafficShift
+                        name: Stage rule Shift
+                        timeout: 10m
+                        spec:
+                          elastigroupTrafficShiftWrapper:
+                            type: Standalone
+                            spec:
+                              loadBalancer: namanSpot
+                              listenerArn: <+stage.variables.devListener>
+                              listenerRuleArn: <+stage.variables.stageRule>
+                              forwardTrafficConfig:
+                                - targetGroupArn: <+stage.variables.stageTargetGroup>
+                                  weight: <+matrix.weight>
+                                - targetGroupArn: <+stage.variables.prodTargetGroup>
+                                  weight: <+(100 - <+matrix.weight>)>
+                    - step:
+                        identifier: ElastigroupBlueGreenTrafficShift2
+                        type: ElastigroupBlueGreenTrafficShift
+                        name: Dev rule Shift
+                        timeout: 10m
+                        spec:
+                          elastigroupTrafficShiftWrapper:
+                            type: Standalone
+                            spec:
+                              loadBalancer: namanSpot
+                              listenerArn: <+stage.variables.devListener>
+                              listenerRuleArn: <+stage.variables.devRule>
+                              forwardTrafficConfig:
+                                - targetGroupArn: <+stage.variables.stageTargetGroup>
+                                  weight: <+matrix.weight>
+                                - targetGroupArn: <+stage.variables.prodTargetGroup>
+                                  weight: <+(100 - <+matrix.weight>)>
+                  when:
+                    stageStatus: Success
+                    condition: "true"
+              - step:
+                  identifier: Before_Inherit
+                  type: ShellScript
+                  name: Before Inherit
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: <+input>
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+              - stepGroup:
+                  identifier: Prod_Environment_Traffic_Shifting
+                  name: Prod Environment Traffic Shifting
+                  strategy:
+                    matrix:
+                      maxConcurrency: 1
+                      weight:
+                        - 50
+                        - 100
+                  steps:
+                    - step:
+                        identifier: HarnessApproval_1
+                        type: HarnessApproval
+                        name: HarnessApproval_1
+                        spec:
+                          approvalMessage: Please review the following information and approve the pipeline progression
+                          includePipelineExecutionHistory: true
+                          isAutoRejectEnabled: false
+                          approvers:
+                            userGroups:
+                              - account._account_all_users
+                            minimumCount: 1
+                            disallowPipelineExecutor: false
+                          approverInputs: []
+                        timeout: 1d
+                    - step:
+                        identifier: ElastigroupBlueGreenTrafficShift
+                        type: ElastigroupBlueGreenTrafficShift
+                        name: Elastigroup Blue Green Traffic Shift
+                        timeout: 10m
+                        spec:
+                          elastigroupTrafficShiftWrapper:
+                            type: Inherit
+                            spec:
+                              weightPercentage: <+matrix.weight>
+              - step:
+                  identifier: ShellScript_1
+                  type: ShellScript
+                  name: Post Swap
+                  spec:
+                    shell: Bash
+                    executionTarget: {}
+                    source:
+                      type: Inline
+                      spec:
+                        script: <+input>
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+            rollbackSteps:
+              - step:
+                  identifier: Elastigroup_Rollback
+                  type: ElastigroupRollback
+                  name: Elastigroup Rollback
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  identifier: StandAloneTrafficShiftRollback
+                  type: StandAloneTrafficShiftRollback
+                  name: Stand Alone Traffic Shift Rollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: PipelineRollback
+        variables:
+          - name: listener
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: prodPort
+            type: String
+            description: ""
+            required: false
+            value: "80"
+          - name: prodRule
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: devListener
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: stageRule
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: devRule
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: prodTargetGroup
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: stageTargetGroup
+            type: String
+            description: ""
+            required: false
+            value: arn:..
+          - name: serviceName
+            type: String
+            value: <+project.identifier>_<+service.identifier>_<+env.identifier>_DS_Inherit_Only_New
+  delegateSelectors:
+    - kubernetes
