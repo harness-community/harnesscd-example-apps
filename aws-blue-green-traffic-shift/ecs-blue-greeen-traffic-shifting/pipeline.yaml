@@ -1,0 +1,174 @@
+pipeline:
+  identifier: your_pipeline_id
+  name: your_pipeline_name
+  projectIdentifier: Krishika_CD_Samples
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        identifier: your_stage_id
+        type: Deployment
+        name: your_stage_name
+        spec:
+          deploymentType: ECS
+          service:
+            serviceRef: your_service_ref
+          environment:
+            environmentRef: your_environment_ref
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: your_infra_def
+          execution:
+            steps:
+              - stepGroup:
+                  identifier: your_create_step_group
+                  name: Blue-Green Deployment
+                  steps:
+                    - step:
+                        identifier: your_create_step_id
+                        type: EcsBlueGreenCreateService
+                        name: ECS Blue Green Create Service
+                        timeout: 15m
+                        spec:
+                          loadBalancer: your_load_balancer_name
+                          prodListener: your_prod_listener_arn
+                          prodListenerRuleArn: your_prod_rule_arn
+                          isTrafficShift: true
+                          stageTargetGroupArn: your_stage_tg_arn
+                          sameAsAlreadyRunningInstances: true
+                          updateGreenService: false
+                        failureStrategies:
+                          - onFailure:
+                              errors:
+                                - Timeout
+                              action:
+                                type: Retry
+                                spec:
+                                  retryCount: 1
+                                  retryIntervals:
+                                    - 10s
+                                  onRetryFailure:
+                                    action:
+                                      type: StageRollback
+              - stepGroup:
+                  identifier: your_stage_shift_group
+                  name: Stage Environment Traffic Shifting
+                  strategy:
+                    matrix:
+                      maxConcurrency: 1
+                      weight:
+                        - 50
+                        - 100
+                  steps:
+                    - step:
+                        identifier: your_stage_approval_id
+                        type: HarnessApproval
+                        name: Harness Approval
+                        spec:
+                          approvalMessage: Please review and approve progression
+                          includePipelineExecutionHistory: true
+                          isAutoRejectEnabled: false
+                          approvers:
+                            userGroups:
+                              - account._account_all_users
+                            minimumCount: 1
+                            disallowPipelineExecutor: false
+                          approverInputs: []
+                        timeout: 1d
+                    - step:
+                        identifier: your_stage_shift_id
+                        type: EcsBlueGreenTrafficShift
+                        name: Stage Traffic Shift
+                        timeout: 10m
+                        spec:
+                          ecsTrafficShiftWrapper:
+                            type: Standalone
+                            spec:
+                              loadBalancer: your_load_balancer_name
+                              listener: your_stage_listener_arn
+                              listenerRuleArn: your_stage_rule_arn
+                              forwardConfig:
+                                - targetGroupArn: your_stage_tg_arn
+                                  weight: <+matrix.weight>
+                                - targetGroupArn: your_prod_tg_arn
+                                  weight: <+(100 - <+matrix.weight>)>
+              - stepGroup:
+                  identifier: your_prod_shift_group
+                  name: Prod Environment Traffic Shifting
+                  strategy:
+                    matrix:
+                      maxConcurrency: 1
+                      weight:
+                        - 50
+                        - 100
+                  steps:
+                    - step:
+                        identifier: your_prod_approval_id
+                        type: HarnessApproval
+                        name: Harness Approval
+                        spec:
+                          approvalMessage: Please review and approve progression
+                          includePipelineExecutionHistory: true
+                          isAutoRejectEnabled: false
+                          approvers:
+                            userGroups:
+                              - account._account_all_users
+                            minimumCount: 1
+                            disallowPipelineExecutor: false
+                          approverInputs: []
+                        timeout: 1d
+                    - step:
+                        identifier: your_prod_shift_id
+                        type: EcsBlueGreenTrafficShift
+                        name: Prod Traffic Shift
+                        timeout: 10m
+                        spec:
+                          ecsTrafficShiftWrapper:
+                            type: Inherit
+                            spec:
+                              weightPercentage: <+matrix.weight>
+            rollbackSteps:
+              - step:
+                  identifier: your_rollback1_id
+                  type: EcsBlueGreenRollback
+                  name: ECS Blue Green Rollback
+                  timeout: 10m
+                  spec: {}
+              - step:
+                  identifier: your_rollback2_id
+                  type: StandAloneTrafficShiftRollback
+                  name: Stand Alone Traffic Shift Rollback
+                  timeout: 10m
+                  spec: {}
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+        variables:
+          - name: listener
+            type: String
+            value: your_stage_listener_arn
+          - name: prodRule
+            type: String
+            value: your_prod_rule_arn
+          - name: devRule
+            type: String
+            value: your_stage_rule_arn
+          - name: prodTargetGroup
+            type: String
+            value: your_prod_tg_arn
+          - name: stageTargetGroup
+            type: String
+            value: your_stage_tg_arn
+          - name: serviceName
+            type: String
+            value: your_service_name
+          - name: desiredCount
+            type: Number
+            value: 10
+          - name: taskName
+            type: String
+            value: your_task_name
