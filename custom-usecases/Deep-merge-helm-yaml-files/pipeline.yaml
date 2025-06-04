@@ -1,0 +1,183 @@
+pipeline:
+  name: values-deepmerge
+  identifier: valuesdeepmerge
+  projectIdentifier: test
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: deepmerge-values
+        identifier: deepmergevalues
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: false
+            paths: []
+          buildIntelligence:
+            enabled: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: k8sdemo
+              namespace: harness-delegate-ng
+              automountServiceAccountToken: true
+              nodeSelector: {}
+              os: Linux
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run_1
+                  identifier: Run_1
+                  spec:
+                    connectorRef: Dockerhub_test
+                    image: python:3.9-alpine
+                    shell: Sh
+                    command: |-
+                      #!/bin/sh
+                      set -euo pipefail
+
+                      # 1) Install minimal tools on Alpine
+                      apk update
+                      apk add --no-cache git curl tar gzip python3 py3-pip
+
+                      # 2) Clone the repo into /workspace/cd-samples
+                      git clone \
+                        --branch main \
+                        --depth 1 \
+                        "https://${GIT_TOKEN}@github.com/your-repo/cd-samples.git" \
+                        /workspace/cd-samples
+
+                      # 3) cd into the cloned repo so that .git/ is present
+                      cd /workspace/cd-samples
+
+                      # 4) Install ruamel.yaml for deep-merge (Python)
+                      pip3 install --no-cache-dir ruamel.yaml
+
+                      # 5) Write the inline Python deep-merge script
+                      cat << 'EOF' > deep_merge_yaml.py
+                      import sys
+                      from ruamel.yaml import YAML
+
+                      yaml = YAML()
+
+                      def deep_merge_with_list(base, override):
+                          if isinstance(base, dict) and isinstance(override, dict):
+                              for key, value in override.items():
+                                  if key in base:
+                                      base[key] = deep_merge_with_list(base[key], value)
+                                  else:
+                                      base[key] = value
+                              return base
+                          elif isinstance(base, list) and isinstance(override, list):
+                              merged = list(base)
+                              for item in override:
+                                  if item not in merged:
+                                      merged.append(item)
+                              return merged
+                          else:
+                              return override
+
+                      def main(files, output_file):
+                          base = yaml.load(open(files[0]))
+                          for f in files[1:]:
+                              override = yaml.load(open(f))
+                              base = deep_merge_with_list(base, override)
+                          with open(output_file, 'w') as out:
+                              yaml.dump(base, out)
+
+                      if __name__ == "__main__":
+                          if len(sys.argv) < 3:
+                              print("Usage: python deep_merge_yaml.py base.yaml override1.yaml [override2.yaml ...] output.yaml")
+                              sys.exit(1)
+                          *input_files, output = sys.argv[1:]
+                          main(input_files, output)
+                      EOF
+
+                      # 6) Run the deep-merge on the values files:
+                      #    - Base: mychart/values.yaml
+                      #    - Overrides: overrides/values-db.yaml, overrides/values-mem.yaml
+                      python3 deep_merge_yaml.py \
+                        mychart/values.yaml \
+                        overrides/values-db.yaml \
+                        overrides/values-mem.yaml \
+                        merged-values.yaml
+
+                      echo "---- merged-values.yaml ----"
+                      cat merged-values.yaml
+
+                      # 7) Configure Git user identity for committing
+                      git config user.email "<+pipeline.variables.email>"
+                      git config user.name "<+pipeline.variables.github_handle>"
+
+                      # 8) Create or reset the merged branch
+                      git checkout -B "<+pipeline.variables.git_branch>"
+
+                      # 9) Stage & commit the merged file
+                      git add merged-values.yaml
+                      git commit -m "chore: add merged-values.yaml on <+pipeline.variables.git_branch>"
+
+                      # 10) Push (force) to the remote merged branch via HTTPS + GIT_TOKEN
+                      git push \
+                        "https://${GIT_TOKEN}@github.com/your-repo/cd-samples.git" \
+                        "<+pipeline.variables.git_branch>" --force
+
+                      echo "🔥 merged-values.yaml pushed to branch <+pipeline.variables.git_branch>"
+                  description: clone the git repo and use the run step to deep-merge the values-yaml file and push it to a git branch.
+    - stage:
+        name: helm-deploy
+        identifier: helmdeploy
+        description: ""
+        type: Deployment
+        spec:
+          deploymentType: NativeHelm
+          service:
+            serviceRef: valuesdeepmerge
+            serviceInputs:
+              serviceDefinition:
+                type: NativeHelm
+                spec:
+                  manifestConfigurations:
+                    primaryManifestRef: <+input>
+          environment:
+            environmentRef: samplepipeline
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: k8sinfra20
+          execution:
+            steps:
+              - step:
+                  type: HelmDeploy
+                  name: HelmDeploy_1
+                  identifier: HelmDeploy_1
+                  spec:
+                    skipDryRun: false
+                    ignoreReleaseHistFailStatus: false
+                  timeout: 10m
+            rollbackSteps: []
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+  variables:
+    - name: email
+      type: String
+      description: ""
+      required: false
+      value: your_email
+    - name: github_handle
+      type: String
+      description: ""
+      required: false
+      value: your_github_handle
+    - name: git_branch
+      type: String
+      description: Git branch name where Deep-merges YAML is stored and user in service config
+      required: true
+      value: <+input>
