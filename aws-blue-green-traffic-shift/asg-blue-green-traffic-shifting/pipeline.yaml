@@ -13,19 +13,19 @@ pipeline:
         spec:
           deploymentType: Asg
           service:
-            serviceRef: AsgService_6SIiP
+            serviceRef: your_service_ref
             serviceInputs:
               serviceDefinition:
                 type: Asg
                 spec:
                   artifacts:
                     primary:
-                      primaryArtifactRef: AMI-ARTIFACT
+                      primaryArtifactRef: your_ami_artifact
           environment:
-            environmentRef: AsgEnv
+            environmentRef: your_environment_ref
             deployToAll: false
             infrastructureDefinitions:
-              - identifier: AsgInfra
+              - identifier: your_infra_def
           execution:
             steps:
               - stepGroup:
@@ -46,8 +46,8 @@ pipeline:
                               desired: 1
                           loadBalancers:
                             - loadBalancer: asg-test
-                              prodListener: arn:...
-                              prodListenerRuleArn: arn:..
+                              prodListener: your_listener_arn
+                              prodListenerRuleArn: your_rule_arn
                     - step:
                         name: AsgShiftTraffic30
                         identifier: AsgShiftTraffic30
