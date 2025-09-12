@@ -1,0 +1,48 @@
+template:
+  name: harness-deployment-template
+  type: Pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  spec:
+    stages:
+      - stage:
+          description: ""
+          failureStrategies:
+            - onFailure:
+                action:
+                  type: StageRollback
+                errors:
+                  - AllErrors
+          identifier: deployguestbook
+          name: deploy-guestbook
+          spec:
+            deploymentType: Kubernetes
+            environment:
+              deployToAll: false
+              environmentRef: harnessdevenv
+              infrastructureDefinitions:
+                - identifier: harnessk8sinfra
+            execution:
+              rollbackSteps:
+                - step:
+                    identifier: rollbackRolloutDeployment
+                    name: Rollback Rollout Deployment
+                    spec:
+                      pruningEnabled: false
+                    timeout: 10m
+                    type: K8sRollingRollback
+              steps:
+                - step:
+                    identifier: rolloutDeployment
+                    name: Rollout Deployment
+                    spec:
+                      pruningEnabled: false
+                      skipDryRun: false
+                    timeout: 10m
+                    type: K8sRollingDeploy
+            service:
+              serviceRef: harnessguestbook
+          tags: {}
+          type: Deployment
+  identifier: harnessdeploymenttemplate
+  versionLabel: 0.0.1
