@@ -1,0 +1,39 @@
+pipeline:
+  name: git-clone
+  identifier: gitclone
+  projectIdentifier: your-project
+  orgIdentifier: default
+  tags: {}
+  stages:
+    - stage:
+        name: s1
+        identifier: s1
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: false
+          caching:
+            enabled: true
+            override: false
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Run_1
+                  identifier: Run_1
+                  spec:
+                    shell: Sh
+                    command: |-
+                      git clone https://<+secrets.getValue("your-git-token")>@github.com/your-org/your-repo.git
+
+                      cd cd-samples
+                      echo "Printing README.md:"
+                      cat README.md
