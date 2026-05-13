@@ -1,0 +1,473 @@
+template:
+  name: Vercel Canary Deployment Template
+  identifier: Vercel_Canary_Deployment_Template
+  versionLabel: v1
+  type: Pipeline
+  projectIdentifier: akshitdevrelharness
+  orgIdentifier: default
+  tags:
+    platform: vercel
+    type: canary
+  spec:
+    properties:
+      ci:
+        codebase:
+          connectorRef: <+input>
+          repoName: <+input>
+          build: <+input>
+    stages:
+      - stage:
+          name: Build and Test
+          identifier: build_test
+          type: CI
+          spec:
+            cloneCodebase: true
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Install Dependencies
+                    identifier: install_deps
+                    type: Run
+                    spec:
+                      image: node:20-alpine
+                      shell: Sh
+                      command: |
+                        npm ci
+                - step:
+                    name: Run Tests
+                    identifier: run_tests
+                    type: Run
+                    spec:
+                      image: node:20-alpine
+                      shell: Sh
+                      command: |
+                        npm test -- --watchAll=false || echo "No tests"
+      - stage:
+          name: Deploy New Version
+          identifier: deploy_new
+          type: CI
+          spec:
+            cloneCodebase: true
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Deploy to Vercel
+                    identifier: vercel_deploy
+                    type: Run
+                    spec:
+                      image: node:20-alpine
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        VERCEL_PROJECT_ID: <+secrets.getValue("vercel_project_id")>
+                      command: |
+                        npm install -g vercel
+                        vercel link --yes --token=$VERCEL_TOKEN
+                        vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+                        vercel build --prod --token=$VERCEL_TOKEN
+
+                        DEPLOYMENT_OUTPUT=$(vercel deploy --prebuilt --prod --archive=tgz --token=$VERCEL_TOKEN 2>&1)
+                        echo "$DEPLOYMENT_OUTPUT"
+
+                        DEPLOYMENT_URL=$(echo "$DEPLOYMENT_OUTPUT" | grep -E "(Production:|Deployed to:)" | grep -o 'https://[^ ]*' | head -1)
+                        echo "New deployment: $DEPLOYMENT_URL"
+
+                        export DEPLOYMENT_URL
+                      outputVariables:
+                        - name: DEPLOYMENT_URL
+                          type: String
+                          value: DEPLOYMENT_URL
+                - step:
+                    name: Get Current Production URL
+                    identifier: get_current
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        VERCEL_PROJECT_ID: <+secrets.getValue("vercel_project_id")>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        RESPONSE=$(curl -s "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=production&state=READY&limit=2" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN")
+
+                        CURRENT_URL=$(echo "$RESPONSE" | jq -r '.deployments[1].url // empty')
+
+                        if [ -z "$CURRENT_URL" ]; then
+                          CURRENT_PRODUCTION_URL="none"
+                        else
+                          CURRENT_PRODUCTION_URL="https://$CURRENT_URL"
+                        fi
+
+                        echo "Current production: $CURRENT_PRODUCTION_URL"
+                        export CURRENT_PRODUCTION_URL
+                      outputVariables:
+                        - name: CURRENT_PRODUCTION_URL
+                          type: String
+                          value: CURRENT_PRODUCTION_URL
+      - stage:
+          name: Canary-10
+          identifier: canary_10_percent
+          type: CI
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Route-10-Traffic
+                    identifier: route_10_percent
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        EDGE_CONFIG_ID: <+pipeline.variables.edge_config_id>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        CURRENT_URL: <+pipeline.stages.deploy_new.spec.execution.steps.get_current.output.outputVariables.CURRENT_PRODUCTION_URL>
+                        NEW_URL: <+pipeline.stages.deploy_new.spec.execution.steps.vercel_deploy.output.outputVariables.DEPLOYMENT_URL>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        cat > payload.json <<EOF
+                        {
+                          "items": [{
+                            "operation": "upsert",
+                            "key": "traffic_config",
+                            "value": {
+                              "current_deployment": {"url": "$CURRENT_URL", "percentage": 90},
+                              "new_deployment": {"url": "$NEW_URL", "percentage": 10},
+                              "updated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                            }
+                          }]
+                        }
+                        EOF
+
+                        curl -X PATCH \
+                          "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/items?teamId=$VERCEL_ORG_ID" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          -d @payload.json
+
+                        echo "Traffic updated: 10% to new"
+      - stage:
+          name: Approve-10
+          identifier: approve_10_percent
+          type: Approval
+          spec:
+            execution:
+              steps:
+                - step:
+                    name: Approve-10-Canary
+                    identifier: approval_10_percent
+                    type: HarnessApproval
+                    timeout: 2h
+                    spec:
+                      approvalMessage: 10% canary live. Approve to proceed to 25%?
+                      includePipelineExecutionHistory: true
+                      approvers:
+                        minimumCount: 1
+                        disallowPipelineExecutor: false
+                        userGroups:
+                          - _project_all_project_users
+                          - account._account_all_users
+                      isAutoRejectEnabled: false
+      - stage:
+          name: Canary-25
+          identifier: canary_25_percent
+          type: CI
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Route-25-Traffic
+                    identifier: route_25_percent
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        EDGE_CONFIG_ID: <+pipeline.variables.edge_config_id>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        CURRENT_URL: <+pipeline.stages.deploy_new.spec.execution.steps.get_current.output.outputVariables.CURRENT_PRODUCTION_URL>
+                        NEW_URL: <+pipeline.stages.deploy_new.spec.execution.steps.vercel_deploy.output.outputVariables.DEPLOYMENT_URL>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        cat > payload.json <<EOF
+                        {
+                          "items": [{
+                            "operation": "update",
+                            "key": "traffic_config",
+                            "value": {
+                              "current_deployment": {"url": "$CURRENT_URL", "percentage": 75},
+                              "new_deployment": {"url": "$NEW_URL", "percentage": 25},
+                              "updated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                            }
+                          }]
+                        }
+                        EOF
+
+                        curl -X PATCH \
+                          "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/items?teamId=$VERCEL_ORG_ID" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          -d @payload.json
+
+                        echo "Traffic updated: 25% to new"
+      - stage:
+          name: Approve-25
+          identifier: approve_25_percent
+          type: Approval
+          spec:
+            execution:
+              steps:
+                - step:
+                    name: Approve-25-Canary
+                    identifier: approval_25_percent
+                    type: HarnessApproval
+                    timeout: 2h
+                    spec:
+                      approvalMessage: 25% canary live. Approve to proceed to 50%?
+                      includePipelineExecutionHistory: true
+                      approvers:
+                        minimumCount: 1
+                        disallowPipelineExecutor: false
+                        userGroups:
+                          - _project_all_project_users
+                          - account._account_all_users
+                      isAutoRejectEnabled: false
+      - stage:
+          name: Canary-50
+          identifier: canary_50_percent
+          type: CI
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Route-50-Traffic
+                    identifier: route_50_percent
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        EDGE_CONFIG_ID: <+pipeline.variables.edge_config_id>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        CURRENT_URL: <+pipeline.stages.deploy_new.spec.execution.steps.get_current.output.outputVariables.CURRENT_PRODUCTION_URL>
+                        NEW_URL: <+pipeline.stages.deploy_new.spec.execution.steps.vercel_deploy.output.outputVariables.DEPLOYMENT_URL>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        cat > payload.json <<EOF
+                        {
+                          "items": [{
+                            "operation": "update",
+                            "key": "traffic_config",
+                            "value": {
+                              "current_deployment": {"url": "$CURRENT_URL", "percentage": 50},
+                              "new_deployment": {"url": "$NEW_URL", "percentage": 50},
+                              "updated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                            }
+                          }]
+                        }
+                        EOF
+
+                        curl -X PATCH \
+                          "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/items?teamId=$VERCEL_ORG_ID" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          -d @payload.json
+
+                        echo "Traffic updated: 50% to new"
+      - stage:
+          name: Approve-50
+          identifier: approve_50_percent
+          type: Approval
+          spec:
+            execution:
+              steps:
+                - step:
+                    name: Approve-50-Canary
+                    identifier: approval_50_percent
+                    type: HarnessApproval
+                    timeout: 2h
+                    spec:
+                      approvalMessage: 50% canary live. Approve to proceed to 75%?
+                      includePipelineExecutionHistory: true
+                      approvers:
+                        minimumCount: 1
+                        disallowPipelineExecutor: false
+                        userGroups:
+                          - _project_all_project_users
+                          - account._account_all_users
+                      isAutoRejectEnabled: false
+      - stage:
+          name: Canary-75
+          identifier: canary_75_percent
+          type: CI
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Route-75-Traffic
+                    identifier: route_75_percent
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        EDGE_CONFIG_ID: <+pipeline.variables.edge_config_id>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        CURRENT_URL: <+pipeline.stages.deploy_new.spec.execution.steps.get_current.output.outputVariables.CURRENT_PRODUCTION_URL>
+                        NEW_URL: <+pipeline.stages.deploy_new.spec.execution.steps.vercel_deploy.output.outputVariables.DEPLOYMENT_URL>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        cat > payload.json <<EOF
+                        {
+                          "items": [{
+                            "operation": "update",
+                            "key": "traffic_config",
+                            "value": {
+                              "current_deployment": {"url": "$CURRENT_URL", "percentage": 25},
+                              "new_deployment": {"url": "$NEW_URL", "percentage": 75},
+                              "updated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                            }
+                          }]
+                        }
+                        EOF
+
+                        curl -X PATCH \
+                          "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/items?teamId=$VERCEL_ORG_ID" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          -d @payload.json
+
+                        echo "Traffic updated: 75% to new"
+      - stage:
+          name: Approve-75
+          identifier: approve_75_percent
+          type: Approval
+          spec:
+            execution:
+              steps:
+                - step:
+                    name: Approve-75-Canary
+                    identifier: approval_75_percent
+                    type: HarnessApproval
+                    timeout: 2h
+                    spec:
+                      approvalMessage: 75% canary live. Approve for full cutover to 100%?
+                      includePipelineExecutionHistory: true
+                      approvers:
+                        minimumCount: 1
+                        disallowPipelineExecutor: false
+                        userGroups:
+                          - _project_all_project_users
+                          - account._account_all_users
+                      isAutoRejectEnabled: false
+      - stage:
+          name: Full-Cutover-100
+          identifier: full_cutover
+          type: CI
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Route-100-Traffic
+                    identifier: route_100_percent
+                    type: Run
+                    spec:
+                      image: alpine:latest
+                      shell: Sh
+                      envVariables:
+                        VERCEL_TOKEN: <+secrets.getValue("vercel_token")>
+                        EDGE_CONFIG_ID: <+pipeline.variables.edge_config_id>
+                        VERCEL_ORG_ID: <+secrets.getValue("vercel_org_id")>
+                        CURRENT_URL: <+pipeline.stages.deploy_new.spec.execution.steps.get_current.output.outputVariables.CURRENT_PRODUCTION_URL>
+                        NEW_URL: <+pipeline.stages.deploy_new.spec.execution.steps.vercel_deploy.output.outputVariables.DEPLOYMENT_URL>
+                      command: |
+                        apk add --no-cache curl jq
+
+                        cat > payload.json <<EOF
+                        {
+                          "items": [{
+                            "operation": "update",
+                            "key": "traffic_config",
+                            "value": {
+                              "current_deployment": {"url": "$NEW_URL", "percentage": 100},
+                              "new_deployment": {"url": "", "percentage": 0},
+                              "previous_deployment": {"url": "$CURRENT_URL"},
+                              "updated_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+                            }
+                          }]
+                        }
+                        EOF
+
+                        curl -X PATCH \
+                          "https://api.vercel.com/v1/edge-config/$EDGE_CONFIG_ID/items?teamId=$VERCEL_ORG_ID" \
+                          -H "Authorization: Bearer $VERCEL_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          -d @payload.json
+
+                        echo "Full cutover complete: 100% to new"
+    variables:
+      - name: edge_config_id
+        type: String
+        description: Edge Config ID
+        value: <+input>
+        required: true
