@@ -217,6 +217,8 @@ pod/release-xxx-demo-xxx          1/1     Running   app=release-xxx-demo,cost-ce
 
 The chart templates had **none** of these labels — they were injected entirely by the post-renderer.
 
+![Labels verified on live Deployment](./kustomize-post-renderer.png)
+
 ---
 
 ## Label Schema
