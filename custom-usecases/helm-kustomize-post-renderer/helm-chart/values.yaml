@@ -1,0 +1,5 @@
+# Public image — no registry/artifact connector needed for this demo.
+image:
+  repository: nginx
+  tag: stable
+replicaCount: 1
