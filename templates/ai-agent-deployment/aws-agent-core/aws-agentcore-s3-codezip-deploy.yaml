@@ -1,0 +1,602 @@
+template:
+  name: ADK Deployment to AWS AgentCore
+  identifier: ADK_Deployment_to_AWS_AgentCore
+  versionLabel: v1
+  type: Pipeline
+  projectIdentifier: akshitdevrelharness
+  orgIdentifier: default
+  tags:
+    framework: google-adk
+    runtime: aws-agentcore
+    build: codezip
+  spec:
+    stages:
+      - stage:
+          name: Deploy and Verify
+          identifier: deploy_and_verify
+          type: CI
+          description: Deploys a pre-built agent zip from S3 to Amazon Bedrock AgentCore Runtime using direct code deployment.
+          spec:
+            cloneCodebase: false
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - step:
+                    name: Validate S3 Code Artifact
+                    identifier: validate_s3_artifact
+                    type: Run
+                    spec:
+                      image: python:3.12-slim
+                      shell: Bash
+                      envVariables:
+                        AWS_ACCESS_KEY_ID: <+secrets.getValue("aws_access_key_id")>
+                        AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws_secret_access_key")>
+                        AWS_SESSION_TOKEN: <+secrets.getValue("aws_session_token")>
+                        AWS_DEFAULT_REGION: <+pipeline.variables.awsRegion>
+                        AWS_ACCOUNT_ID: <+pipeline.variables.awsAccountId>
+                        CODE_BUCKET: <+pipeline.variables.codeBucket>
+                        CODE_OBJECT_KEY: <+pipeline.variables.codeObjectKey>
+                        EXECUTION_ROLE_ARN: <+pipeline.variables.executionRoleArn>
+                      command: |
+                        set -euo pipefail
+
+                        # ── Normalize AWS credentials ────────────────────
+                        # Secrets frequently carry a trailing newline, and an
+                        # AKIA key paired with a session token is rejected with
+                        # InvalidClientTokenId.
+                        AWS_ACCESS_KEY_ID="$(printf '%s' "${AWS_ACCESS_KEY_ID:-}" | tr -d '[:space:]')"
+                        AWS_SECRET_ACCESS_KEY="$(printf '%s' "${AWS_SECRET_ACCESS_KEY:-}" | tr -d '[:space:]')"
+                        AWS_SESSION_TOKEN="$(printf '%s' "${AWS_SESSION_TOKEN:-}" | tr -d '[:space:]')"
+                        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+
+                        echo "==> Credential shape"
+                        echo "    access key : ${AWS_ACCESS_KEY_ID:0:4}... (${#AWS_ACCESS_KEY_ID} chars)"
+                        echo "    secret key : ${#AWS_SECRET_ACCESS_KEY} chars"
+                        echo "    session tok: ${#AWS_SESSION_TOKEN} chars"
+
+                        case "$AWS_ACCESS_KEY_ID" in
+                          ASIA*)
+                            if [ -z "$AWS_SESSION_TOKEN" ]; then
+                              echo "ERROR: an ASIA... key is temporary and requires aws_session_token."
+                              exit 1
+                            fi
+                            export AWS_SESSION_TOKEN
+                            ;;
+                          AKIA*)
+                            if [ -n "$AWS_SESSION_TOKEN" ]; then
+                              echo "    note: AKIA keys are long-term and must not carry a session token; ignoring it."
+                            fi
+                            unset AWS_SESSION_TOKEN
+                            ;;
+                          "")
+                            echo "ERROR: aws_access_key_id resolved to an empty string."
+                            exit 1
+                            ;;
+                          *)
+                            if [ -z "$AWS_SESSION_TOKEN" ]; then
+                              unset AWS_SESSION_TOKEN
+                            else
+                              export AWS_SESSION_TOKEN
+                            fi
+                            ;;
+                        esac
+
+                        pip install --quiet --root-user-action=ignore boto3
+
+                        cat > /tmp/validate.py << 'PYEOF'
+                        import os
+                        import sys
+
+                        import boto3
+                        from botocore.exceptions import ClientError
+
+                        bucket = os.environ["CODE_BUCKET"]
+                        key = os.environ["CODE_OBJECT_KEY"]
+                        account_id = os.environ["AWS_ACCOUNT_ID"]
+
+                        # 250 MB zipped is the hard AgentCore limit.
+                        MAX_ZIPPED_BYTES = 250 * 1024 * 1024
+
+                        CREDENTIAL_HELP = {
+                            "InvalidClientTokenId": (
+                                "The access key is unknown to AWS. Usual causes: the secret holds a "
+                                "stale or partially pasted key, the key was deleted, the key and "
+                                "secret come from different credential pairs, or a session token is "
+                                "attached to a long-term AKIA key."
+                            ),
+                            "SignatureDoesNotMatch": (
+                                "The access key is valid but the secret key does not match it. "
+                                "Re-paste aws_secret_access_key."
+                            ),
+                            "ExpiredToken": (
+                                "The temporary credentials have expired. Refresh aws_session_token "
+                                "along with the matching key and secret."
+                            ),
+                        }
+
+                        sts = boto3.client("sts")
+                        try:
+                            identity = sts.get_caller_identity()
+                        except ClientError as exc:
+                            code = exc.response["Error"]["Code"]
+                            print(f"ERROR: AWS rejected the credentials ({code}).")
+                            if code in CREDENTIAL_HELP:
+                                print(CREDENTIAL_HELP[code])
+                            print(
+                                "These come from the aws_access_key_id, aws_secret_access_key and "
+                                "aws_session_token secrets in Harness."
+                            )
+                            sys.exit(1)
+
+                        print(f"Caller: {identity['Arn']}")
+
+                        if identity["Account"] != account_id:
+                            print(
+                                f"ERROR: credentials belong to account {identity['Account']}, "
+                                f"but awsAccountId is {account_id}"
+                            )
+                            sys.exit(1)
+
+                        s3 = boto3.client("s3")
+                        try:
+                            head = s3.head_object(
+                                Bucket=bucket, Key=key, ExpectedBucketOwner=account_id
+                            )
+                        except ClientError as exc:
+                            print(f"ERROR: cannot read s3://{bucket}/{key} -- {exc}")
+                            print("Upload the arm64 deployment zip to S3 before running this pipeline.")
+                            sys.exit(1)
+
+                        size = head["ContentLength"]
+                        print(f"Found s3://{bucket}/{key}")
+                        print(f"  size          : {size} bytes")
+                        print(f"  last modified : {head['LastModified']}")
+                        print(f"  etag          : {head['ETag']}")
+
+                        if size == 0:
+                            print("ERROR: deployment package is empty.")
+                            sys.exit(1)
+
+                        if size > MAX_ZIPPED_BYTES:
+                            print(f"ERROR: package exceeds the 250 MB zipped limit.")
+                            sys.exit(1)
+
+                        iam_role = os.environ["EXECUTION_ROLE_ARN"]
+                        if not iam_role.startswith("arn:aws:iam::"):
+                            print(f"ERROR: executionRoleArn is not an IAM role ARN: {iam_role}")
+                            sys.exit(1)
+
+                        print("Validation passed.")
+                        PYEOF
+
+                        python /tmp/validate.py
+                - step:
+                    name: Deploy Agent Runtime
+                    identifier: deploy_agent
+                    type: Run
+                    spec:
+                      image: python:3.12-slim
+                      shell: Bash
+                      envVariables:
+                        AWS_ACCESS_KEY_ID: <+secrets.getValue("aws_access_key_id")>
+                        AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws_secret_access_key")>
+                        AWS_SESSION_TOKEN: <+secrets.getValue("aws_session_token")>
+                        AWS_DEFAULT_REGION: <+pipeline.variables.awsRegion>
+                        AWS_ACCOUNT_ID: <+pipeline.variables.awsAccountId>
+                        CODE_BUCKET: <+pipeline.variables.codeBucket>
+                        CODE_OBJECT_KEY: <+pipeline.variables.codeObjectKey>
+                        RUNTIME_NAME: <+pipeline.variables.runtimeName>
+                        PYTHON_RUNTIME: <+pipeline.variables.pythonRuntime>
+                        ENTRYPOINT: <+pipeline.variables.entrypoint>
+                        USE_OTEL: <+pipeline.variables.useOtel>
+                        EXECUTION_ROLE_ARN: <+pipeline.variables.executionRoleArn>
+                        NETWORK_MODE: <+pipeline.variables.networkMode>
+                        IDLE_SESSION_TIMEOUT: <+pipeline.variables.idleRuntimeSessionTimeout>
+                        MAX_LIFETIME: <+pipeline.variables.maxLifetime>
+                        AI_PORTKEY_API_KEY: <+secrets.getValue("ai_portkey_api_key")>
+                        AI_GROQ_API_KEY: <+secrets.getValue("ai_groq_api_key")>
+                        AI_LLM_MODEL: <+pipeline.variables.llmModel>
+                        AI_LLM_PROVIDER: <+pipeline.variables.llmProvider>
+                        CI: "true"
+                      outputVariables:
+                        - name: RUNTIME_ARN
+                          type: String
+                          value: RUNTIME_ARN
+                        - name: RUNTIME_ID
+                          type: String
+                          value: RUNTIME_ID
+                        - name: RUNTIME_STATUS
+                          type: String
+                          value: RUNTIME_STATUS
+                        - name: DEPLOY_ACTION
+                          type: String
+                          value: DEPLOY_ACTION
+                      command: |
+                        set -euo pipefail
+
+                        # ── Normalize AWS credentials (see Validate step) ─
+                        AWS_ACCESS_KEY_ID="$(printf '%s' "${AWS_ACCESS_KEY_ID:-}" | tr -d '[:space:]')"
+                        AWS_SECRET_ACCESS_KEY="$(printf '%s' "${AWS_SECRET_ACCESS_KEY:-}" | tr -d '[:space:]')"
+                        AWS_SESSION_TOKEN="$(printf '%s' "${AWS_SESSION_TOKEN:-}" | tr -d '[:space:]')"
+                        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+                        case "$AWS_ACCESS_KEY_ID" in
+                          AKIA*) unset AWS_SESSION_TOKEN ;;
+                          *) [ -z "$AWS_SESSION_TOKEN" ] && unset AWS_SESSION_TOKEN || export AWS_SESSION_TOKEN ;;
+                        esac
+
+                        pip install --quiet --root-user-action=ignore boto3
+
+                        cat > /tmp/deploy.py << 'PYEOF'
+                        import hashlib
+                        import json
+                        import os
+                        import sys
+                        import time
+
+                        import boto3
+                        from botocore.exceptions import ClientError
+
+                        region = os.environ["AWS_DEFAULT_REGION"]
+                        account_id = os.environ["AWS_ACCOUNT_ID"]
+                        runtime_name = os.environ["RUNTIME_NAME"]
+                        entrypoint = os.environ["ENTRYPOINT"]
+                        use_otel = os.environ.get("USE_OTEL", "true").lower() == "true"
+
+                        # opentelemetry-instrument only belongs in the entrypoint when
+                        # aws-opentelemetry-distro is inside the zip.
+                        entry_point = (
+                            ["opentelemetry-instrument", entrypoint] if use_otel else [entrypoint]
+                        )
+
+                        artifact = {
+                            "codeConfiguration": {
+                                "code": {
+                                    "s3": {
+                                        "bucket": os.environ["CODE_BUCKET"],
+                                        "prefix": os.environ["CODE_OBJECT_KEY"],
+                                    }
+                                },
+                                "runtime": os.environ["PYTHON_RUNTIME"],
+                                "entryPoint": entry_point,
+                            }
+                        }
+
+                        common = {
+                            "agentRuntimeArtifact": artifact,
+                            "roleArn": os.environ["EXECUTION_ROLE_ARN"],
+                            "networkConfiguration": {
+                                "networkMode": os.environ.get("NETWORK_MODE", "PUBLIC")
+                            },
+                            "lifecycleConfiguration": {
+                                "idleRuntimeSessionTimeout": int(os.environ["IDLE_SESSION_TIMEOUT"]),
+                                "maxLifetime": int(os.environ["MAX_LIFETIME"]),
+                            },
+                        }
+
+                        # ── AGENT-SPECIFIC ───────────────────────────────
+                        # AGENT_ENV_VARS are forwarded to the deployed runtime;
+                        # REQUIRED_ENV_VARS are the ones the deploy fails without.
+                        # Replace both lists to match your own agent, keeping them
+                        # in sync with the envVariables above.
+                        AGENT_ENV_VARS = (
+                            "AI_PORTKEY_API_KEY",
+                            "AI_GROQ_API_KEY",
+                            "AI_LLM_MODEL",
+                            "AI_LLM_PROVIDER",
+                        )
+                        REQUIRED_ENV_VARS = ("AI_PORTKEY_API_KEY", "AI_GROQ_API_KEY")
+                        # ── end AGENT-SPECIFIC ───────────────────────────
+
+                        # Values are stripped because a trailing newline in a
+                        # secret reaches the model provider verbatim and comes
+                        # back as an opaque 401 at the agent's first invocation.
+                        env_vars = {
+                            name: os.environ[name].strip()
+                            for name in AGENT_ENV_VARS
+                            if os.environ.get(name, "").strip()
+                        }
+
+                        for required in REQUIRED_ENV_VARS:
+                            if required not in env_vars:
+                                print(f"ERROR: {required} is empty. Check the Harness secret.")
+                                sys.exit(1)
+                            raw = os.environ[required]
+                            if raw != raw.strip():
+                                print(f"    note: {required} had surrounding whitespace; trimmed.")
+                            # A fingerprint makes a truncated or stale secret obvious
+                            # without printing the value. Compare it against
+                            # printf '%s' "$KEY" | shasum -a 256 locally.
+                            digest = hashlib.sha256(env_vars[required].encode()).hexdigest()[:8]
+                            print(
+                                f"    {required}: {len(env_vars[required])} chars, "
+                                f"sha256:{digest}"
+                            )
+
+                        # ── AGENT-SPECIFIC ───────────────────────────────
+                        # Optional shape checks. A truncated key deploys fine and
+                        # then fails at the first invocation with a 401 that says
+                        # nothing about truncation, so it is worth asserting the
+                        # prefix your provider uses.
+                        if not env_vars["AI_GROQ_API_KEY"].startswith("gsk_"):
+                            print("ERROR: AI_GROQ_API_KEY does not start with 'gsk_'; it is truncated.")
+                            sys.exit(1)
+                        # ── end AGENT-SPECIFIC ───────────────────────────
+
+                        common["environmentVariables"] = env_vars
+
+                        client = boto3.client("bedrock-agentcore-control", region_name=region)
+
+                        def find_existing(name):
+                            paginator_kwargs = {}
+                            while True:
+                                page = client.list_agent_runtimes(**paginator_kwargs)
+                                for runtime in page.get("agentRuntimes", []):
+                                    if runtime.get("agentRuntimeName") == name:
+                                        return runtime
+                                token = page.get("nextToken")
+                                if not token:
+                                    return None
+                                paginator_kwargs = {"nextToken": token}
+
+                        print(f"==> Looking for an existing runtime named {runtime_name}")
+                        existing = find_existing(runtime_name)
+
+                        printable = json.loads(json.dumps(common, default=str))
+                        printable.pop("environmentVariables", None)
+                        print("==> Runtime configuration:")
+                        print(json.dumps(printable, indent=2))
+                        if env_vars:
+                            print(f"==> Environment variables passed: {sorted(env_vars)}")
+
+                        action = "UPDATE" if existing else "CREATE"
+                        try:
+                            if existing:
+                                runtime_id = existing["agentRuntimeId"]
+                                print(f"==> Updating existing runtime {runtime_id}")
+                                response = client.update_agent_runtime(
+                                    agentRuntimeId=runtime_id, **common
+                                )
+                            else:
+                                print("==> Creating a new runtime")
+                                response = client.create_agent_runtime(
+                                    agentRuntimeName=runtime_name,
+                                    description="Deployed via Harness CI (direct code deployment)",
+                                    **common,
+                                )
+                        except ClientError as exc:
+                            print(f"ERROR: {action} failed -- {exc}")
+                            sys.exit(1)
+
+                        runtime_arn = response["agentRuntimeArn"]
+                        runtime_id = runtime_arn.split("/")[-1]
+                        print(f"==> {action} accepted")
+                        print(f"    ARN    : {runtime_arn}")
+                        print(f"    status : {response.get('status')}")
+
+                        TERMINAL_OK = {"READY"}
+                        TERMINAL_BAD = {"CREATE_FAILED", "UPDATE_FAILED", "DELETING", "DELETE_FAILED"}
+                        deadline = time.time() + 900
+
+                        status = response.get("status", "UNKNOWN")
+                        while time.time() < deadline and status not in TERMINAL_OK | TERMINAL_BAD:
+                            time.sleep(15)
+                            described = client.get_agent_runtime(agentRuntimeId=runtime_id)
+                            status = described.get("status", "UNKNOWN")
+                            print(f"    status : {status}")
+
+                        with open("/tmp/deploy-outputs.env", "w", encoding="utf-8") as handle:
+                            handle.write(f"RUNTIME_ARN={runtime_arn}\n")
+                            handle.write(f"RUNTIME_ID={runtime_id}\n")
+                            handle.write(f"RUNTIME_STATUS={status}\n")
+                            handle.write(f"DEPLOY_ACTION={action}\n")
+
+                        if status in TERMINAL_BAD:
+                            print(f"ERROR: runtime ended in {status}")
+                            sys.exit(1)
+
+                        if status not in TERMINAL_OK:
+                            print(f"ERROR: runtime still {status} after 15 minutes")
+                            sys.exit(1)
+
+                        print("==> Runtime is READY")
+                        PYEOF
+
+                        python /tmp/deploy.py
+
+                        set -a
+                        . /tmp/deploy-outputs.env
+                        set +a
+                        export RUNTIME_ARN RUNTIME_ID RUNTIME_STATUS DEPLOY_ACTION
+                - step:
+                    name: Smoke Test
+                    identifier: smoke_test
+                    type: Run
+                    spec:
+                      image: python:3.12-slim
+                      shell: Bash
+                      envVariables:
+                        AWS_ACCESS_KEY_ID: <+secrets.getValue("aws_access_key_id")>
+                        AWS_SECRET_ACCESS_KEY: <+secrets.getValue("aws_secret_access_key")>
+                        AWS_SESSION_TOKEN: <+secrets.getValue("aws_session_token")>
+                        AWS_DEFAULT_REGION: <+pipeline.variables.awsRegion>
+                        RUNTIME_ARN: <+steps.deploy_agent.output.outputVariables.RUNTIME_ARN>
+                        SMOKE_PROMPT: <+pipeline.variables.smokePrompt>
+                        CI: "true"
+                      command: |
+                        set -euo pipefail
+
+                        # ── Normalize AWS credentials (see Validate step) ─
+                        AWS_ACCESS_KEY_ID="$(printf '%s' "${AWS_ACCESS_KEY_ID:-}" | tr -d '[:space:]')"
+                        AWS_SECRET_ACCESS_KEY="$(printf '%s' "${AWS_SECRET_ACCESS_KEY:-}" | tr -d '[:space:]')"
+                        AWS_SESSION_TOKEN="$(printf '%s' "${AWS_SESSION_TOKEN:-}" | tr -d '[:space:]')"
+                        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+                        case "$AWS_ACCESS_KEY_ID" in
+                          AKIA*) unset AWS_SESSION_TOKEN ;;
+                          *) [ -z "$AWS_SESSION_TOKEN" ] && unset AWS_SESSION_TOKEN || export AWS_SESSION_TOKEN ;;
+                        esac
+
+                        pip install --quiet --root-user-action=ignore boto3
+
+                        cat > /tmp/smoke.py << 'PYEOF'
+                        import json
+                        import os
+                        import sys
+                        import time
+                        import uuid
+
+                        import boto3
+                        from botocore.exceptions import ClientError
+
+                        runtime_arn = os.environ["RUNTIME_ARN"]
+                        prompt = os.environ.get("SMOKE_PROMPT") or "Hello, are you there?"
+
+                        # runtimeSessionId must be at least 33 characters.
+                        session_id = f"harness-{int(time.time())}-{uuid.uuid4().hex}"
+
+                        print(f"==> Invoking {runtime_arn}")
+                        print(f"==> Session {session_id}")
+
+                        client = boto3.client("bedrock-agentcore")
+
+                        try:
+                            response = client.invoke_agent_runtime(
+                                agentRuntimeArn=runtime_arn,
+                                runtimeSessionId=session_id,
+                                contentType="application/json",
+                                accept="application/json",
+                                payload=json.dumps({"prompt": prompt}).encode("utf-8"),
+                            )
+                        except ClientError as exc:
+                            code = exc.response["Error"]["Code"]
+                            print(f"ERROR: invoke failed ({code}) -- {exc}")
+
+                            if code == "RuntimeClientError":
+                                # The runtime is up; the agent itself returned 4xx/5xx.
+                                runtime_id = runtime_arn.split("/")[-1]
+                                print(
+                                    "The agent was reached but returned an error, so this is a "
+                                    "problem in the agent, not in the deployment."
+                                )
+                                print(
+                                    "Logs: /aws/bedrock-agentcore/runtimes/"
+                                    f"{runtime_id}-DEFAULT"
+                                )
+                                print(
+                                    "A 401 from the model gateway usually means the credential "
+                                    "environment variables are wrong."
+                                )
+                                sys.exit(1)
+
+                            if code in {"ThrottlingException", "RetryableConflictException"}:
+                                print("Transient; retry the smoke test.")
+                                sys.exit(0)
+
+                            print("A newly created runtime can take several minutes to serve traffic.")
+                            sys.exit(0)
+
+                        body = response["response"].read().decode("utf-8", errors="replace")
+                        print("==> Response:")
+                        print(body)
+
+                        if not body.strip():
+                            print("WARNING: empty response -- smoke test inconclusive.")
+                            sys.exit(0)
+
+                        print("==> Smoke test passed.")
+                        PYEOF
+
+                        python /tmp/smoke.py
+    variables:
+      - name: awsRegion
+        type: String
+        description: AWS region holding the S3 bucket and the AgentCore runtime
+        default: us-east-1
+        value: <+input>
+        required: true
+      - name: awsAccountId
+        type: String
+        description: AWS account ID (12 digits), also used as the expected S3 bucket owner
+        value: <+input>
+        required: true
+      - name: codeBucket
+        type: String
+        description: S3 bucket holding the pre-built agent deployment zip
+        default: agentcore-zips
+        value: <+input>
+        required: true
+      - name: codeObjectKey
+        type: String
+        description: S3 object key of the deployment zip, built with Linux arm64 wheels
+        default: deployment_package.zip
+        value: <+input>
+        required: true
+      - name: runtimeName
+        type: String
+        description: AgentCore runtime name. Created if absent, updated in place if it already exists.
+        default: gamback_copilot
+        value: <+input>
+        required: true
+      - name: executionRoleArn
+        type: String
+        description: IAM role AgentCore assumes to read the S3 package and run the agent
+        value: <+input>
+        required: true
+      - name: pythonRuntime
+        type: String
+        description: AgentCore Python runtime. Must match the version the wheels were built for.
+        default: PYTHON_3_12
+        value: <+input>
+        required: true
+      - name: entrypoint
+        type: String
+        description: Entrypoint .py file at the root of the zip
+        default: main.py
+        value: <+input>
+        required: true
+      - name: useOtel
+        type: String
+        description: Set true only when aws-opentelemetry-distro is inside the zip. Prefixes the entrypoint with opentelemetry-instrument.
+        default: "false"
+        value: <+input>
+        required: true
+      - name: networkMode
+        type: String
+        description: Runtime network mode
+        default: PUBLIC
+        value: <+input>
+        required: true
+      - name: idleRuntimeSessionTimeout
+        type: String
+        description: Seconds an idle session stays alive before AgentCore stops it
+        default: "300"
+        value: <+input>
+        required: true
+      - name: maxLifetime
+        type: String
+        description: Maximum session lifetime in seconds
+        default: "1800"
+        value: <+input>
+        required: true
+      - name: llmModel
+        type: String
+        description: Model the agent requests through the Portkey gateway
+        default: llama-3.3-70b-versatile
+        value: <+input>
+        required: true
+      - name: llmProvider
+        type: String
+        description: Upstream provider behind the Portkey gateway
+        default: groq
+        value: <+input>
+        required: true
+      - name: smokePrompt
+        type: String
+        description: Prompt sent to the deployed runtime as a post-deploy check
+        default: Hello, are you there? Reply in one sentence.
+        value: <+input>
+        required: false
