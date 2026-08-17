@@ -1,21 +1,21 @@
 template:
   name: ADK Deployment to AWS AgentCore
   identifier: ADK_Deployment_to_AWS_AgentCore
-  versionLabel: v1
+  versionLabel: v2
   type: Pipeline
   projectIdentifier: akshitdevrelharness
   orgIdentifier: default
   tags:
     framework: google-adk
     runtime: aws-agentcore
-    build: codezip
+    deploy: s3-direct-code
   spec:
     stages:
       - stage:
-          name: Deploy and Verify
+          name: Build and Deploy
           identifier: deploy_and_verify
           type: CI
-          description: Deploys a pre-built agent zip from S3 to Amazon Bedrock AgentCore Runtime using direct code deployment.
+          description: Clones the agent source, packages it as an arm64 zip, uploads it to S3, and deploys it to Amazon Bedrock AgentCore Runtime using direct code deployment.
           spec:
             cloneCodebase: false
             platform:
@@ -27,8 +27,101 @@ template:
             execution:
               steps:
                 - step:
-                    name: Validate S3 Code Artifact
-                    identifier: validate_s3_artifact
+                    type: GitClone
+                    name: Git Clone
+                    identifier: git_clone
+                    spec:
+                      connectorRef: <+pipeline.variables.gitConnectorRef>
+                      repoName: <+pipeline.variables.repoName>
+                      build:
+                        type: branch
+                        spec:
+                          branch: <+pipeline.variables.gitBranch>
+                - step:
+                    name: Validate Agent Project
+                    identifier: validate_project
+                    type: Run
+                    spec:
+                      shell: Sh
+                      envVariables:
+                        REPO_NAME: <+pipeline.variables.repoName>
+                        AGENT_SUB_PATH: <+pipeline.variables.agentSubPath>
+                        ENTRYPOINT: <+pipeline.variables.entrypoint>
+                      command: |
+                        set -eu
+
+                        # GitClone lands the repo either at /harness/<repoName> or
+                        # directly in /harness depending on the clone settings.
+                        if [ -d "/harness/$REPO_NAME" ]; then
+                          REPO_ROOT="/harness/$REPO_NAME"
+                        else
+                          REPO_ROOT="/harness"
+                        fi
+
+                        if [ "$AGENT_SUB_PATH" = "." ] || [ -z "$AGENT_SUB_PATH" ]; then
+                          AGENT_DIR="$REPO_ROOT"
+                        else
+                          AGENT_DIR="$REPO_ROOT/$AGENT_SUB_PATH"
+                        fi
+
+                        echo "==> Agent directory: $AGENT_DIR"
+                        if [ ! -d "$AGENT_DIR" ]; then
+                          echo "ERROR: agentSubPath '$AGENT_SUB_PATH' does not exist in the repo."
+                          echo "Repo contents:"
+                          ls -la "$REPO_ROOT"
+                          exit 1
+                        fi
+
+                        cd "$AGENT_DIR"
+                        echo "==> Contents"
+                        ls -la
+
+                        # The entrypoint must sit at the top of the agent directory,
+                        # because it has to land at the root of the zip.
+                        if [ ! -f "$ENTRYPOINT" ]; then
+                          echo "ERROR: entrypoint '$ENTRYPOINT' not found in $AGENT_DIR."
+                          echo "AgentCore runs the entrypoint from the root of the archive,"
+                          echo "so it must be at the top level of the agent directory."
+                          exit 1
+                        fi
+                        echo "  OK: $ENTRYPOINT"
+
+                        # Dependencies have to be declared somewhere we can install from.
+                        if [ -f "pyproject.toml" ]; then
+                          echo "  OK: pyproject.toml (dependency source)"
+                        elif [ -f "requirements.txt" ]; then
+                          echo "  OK: requirements.txt (dependency source)"
+                        else
+                          echo "ERROR: neither pyproject.toml nor requirements.txt found."
+                          echo "AgentCore does not install dependencies for you; they must be"
+                          echo "installed into the zip, so the pipeline needs a manifest."
+                          exit 1
+                        fi
+
+                        # AgentCore Runtime contract: either the SDK annotation or the
+                        # two HTTP endpoints. Without one of these the runtime deploys
+                        # and then fails health checks.
+                        if grep -q "@app.entrypoint" "$ENTRYPOINT"; then
+                          echo "  OK: uses @app.entrypoint from the bedrock-agentcore SDK"
+                        elif grep -q "/invocations" "$ENTRYPOINT" && grep -q "/ping" "$ENTRYPOINT"; then
+                          echo "  OK: implements POST /invocations and GET /ping"
+                        else
+                          echo "ERROR: $ENTRYPOINT does not satisfy the AgentCore Runtime contract."
+                          echo "It must either use @app.entrypoint from the bedrock-agentcore SDK,"
+                          echo "or serve POST /invocations and GET /ping on 0.0.0.0:8080."
+                          echo "https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-service-contract.html"
+                          exit 1
+                        fi
+
+                        if ! grep -q "8080" "$ENTRYPOINT"; then
+                          echo "  note: no reference to port 8080 in $ENTRYPOINT."
+                          echo "        AgentCore only talks to 8080 and does not fall back."
+                        fi
+
+                        echo "==> Validation passed"
+                - step:
+                    name: Package and Upload to S3
+                    identifier: package_and_upload
                     type: Run
                     spec:
                       image: python:3.12-slim
@@ -39,9 +132,26 @@ template:
                         AWS_SESSION_TOKEN: <+secrets.getValue("aws_session_token")>
                         AWS_DEFAULT_REGION: <+pipeline.variables.awsRegion>
                         AWS_ACCOUNT_ID: <+pipeline.variables.awsAccountId>
+                        REPO_NAME: <+pipeline.variables.repoName>
+                        AGENT_SUB_PATH: <+pipeline.variables.agentSubPath>
+                        ENTRYPOINT: <+pipeline.variables.entrypoint>
+                        PYTHON_RUNTIME: <+pipeline.variables.pythonRuntime>
                         CODE_BUCKET: <+pipeline.variables.codeBucket>
-                        CODE_OBJECT_KEY: <+pipeline.variables.codeObjectKey>
+                        S3_KEY_PREFIX: <+pipeline.variables.s3KeyPrefix>
+                        RUNTIME_NAME: <+pipeline.variables.runtimeName>
                         EXECUTION_ROLE_ARN: <+pipeline.variables.executionRoleArn>
+                        BUILD_ID: <+pipeline.sequenceId>
+                        CI: "true"
+                      outputVariables:
+                        - name: CODE_OBJECT_KEY
+                          type: String
+                          value: CODE_OBJECT_KEY
+                        - name: ZIP_SIZE
+                          type: String
+                          value: ZIP_SIZE
+                        - name: ZIP_SHA256
+                          type: String
+                          value: ZIP_SHA256
                       command: |
                         set -euo pipefail
 
@@ -86,95 +196,183 @@ template:
                             ;;
                         esac
 
-                        pip install --quiet --root-user-action=ignore boto3
+                        # ── Build tooling ────────────────────────────────
+                        # 'file' is used to prove the native libraries are arm64.
+                        apt-get update -qq
+                        apt-get install -y --no-install-recommends zip file > /dev/null
+                        pip install --quiet --root-user-action=ignore uv boto3
+                        uv --version
 
-                        cat > /tmp/validate.py << 'PYEOF'
+                        # ── Locate the agent ─────────────────────────────
+                        if [ -d "/harness/$REPO_NAME" ]; then
+                          REPO_ROOT="/harness/$REPO_NAME"
+                        else
+                          REPO_ROOT="/harness"
+                        fi
+                        if [ "$AGENT_SUB_PATH" = "." ] || [ -z "$AGENT_SUB_PATH" ]; then
+                          AGENT_DIR="$REPO_ROOT"
+                        else
+                          AGENT_DIR="$REPO_ROOT/$AGENT_SUB_PATH"
+                        fi
+                        cd "$AGENT_DIR"
+
+                        # PYTHON_3_12 -> 3.12, so the wheels always match the
+                        # runtime the agent is deployed onto.
+                        PY_VERSION="$(printf '%s' "$PYTHON_RUNTIME" | sed 's/^PYTHON_//; s/_/./')"
+                        echo "==> Target: Python $PY_VERSION on linux/arm64"
+
+                        if [ -f "pyproject.toml" ]; then
+                          MANIFEST="pyproject.toml"
+                        else
+                          MANIFEST="requirements.txt"
+                        fi
+                        echo "==> Installing dependencies from $MANIFEST"
+
+                        # AgentCore Runtime is arm64-only, and nothing installs these
+                        # for you at deploy time, so they are cross-installed here as
+                        # aarch64 wheels. --only-binary=:all: makes a missing arm64
+                        # wheel fail loudly instead of building an x86 one silently.
+                        rm -rf deployment_package
+                        uv pip install \
+                          --python-platform aarch64-manylinux2014 \
+                          --python-version "$PY_VERSION" \
+                          --target=deployment_package \
+                          --only-binary=:all: \
+                          -r "$MANIFEST"
+
+                        # ── Normalize the tree ───────────────────────────
+                        find deployment_package -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+                        find deployment_package -name "*.pyc" -delete 2>/dev/null || true
+
+                        # AgentCore needs 644 on files, 755 on dirs and executables.
+                        find deployment_package -type d -exec chmod 755 {} +
+                        find deployment_package -type f -exec chmod 644 {} +
+                        find deployment_package -type f \( -name "*.so*" -o -path "*/bin/*" \) -exec chmod 755 {} +
+
+                        echo "==> Verifying native libraries are aarch64"
+                        if find deployment_package -name "*.so*" -type f -exec file {} \; | grep -v -i "aarch64\|ARM aarch64" | grep -q .; then
+                          echo "ERROR: found native libraries that are not aarch64:"
+                          find deployment_package -name "*.so*" -type f -exec file {} \; | grep -v -i "aarch64\|ARM aarch64"
+                          echo "These deploy successfully and then fail at import inside the runtime."
+                          exit 1
+                        fi
+                        echo "    all native libraries are aarch64"
+
+                        # ── Assemble the archive ─────────────────────────
+                        # Dependencies at the root, then the agent source at the
+                        # root beside them. AgentCore mounts this at /var/task,
+                        # which is first on sys.path.
+                        ZIP_PATH="/tmp/deployment_package.zip"
+                        rm -f "$ZIP_PATH"
+
+                        (cd deployment_package && zip -qr "$ZIP_PATH" .)
+                        zip -qr "$ZIP_PATH" . \
+                          -x "deployment_package/*" \
+                             ".git/*" \
+                             ".venv/*" \
+                             "venv/*" \
+                             "*/__pycache__/*" \
+                             "__pycache__/*" \
+                             "*.pyc" \
+                             "*.zip"
+
+                        chmod 644 "$ZIP_PATH"
+                        ls -lh "$ZIP_PATH"
+
+                        # ── Verify and upload ────────────────────────────
+                        cat > /tmp/package.py << 'PYEOF'
+                        import hashlib
                         import os
                         import sys
+                        import zipfile
 
                         import boto3
                         from botocore.exceptions import ClientError
 
+                        zip_path = "/tmp/deployment_package.zip"
+                        entrypoint = os.environ["ENTRYPOINT"]
                         bucket = os.environ["CODE_BUCKET"]
-                        key = os.environ["CODE_OBJECT_KEY"]
                         account_id = os.environ["AWS_ACCOUNT_ID"]
+                        prefix = os.environ.get("S3_KEY_PREFIX", "").strip("/")
+                        runtime_name = os.environ["RUNTIME_NAME"]
+                        build_id = os.environ.get("BUILD_ID", "0")
 
-                        # 250 MB zipped is the hard AgentCore limit.
-                        MAX_ZIPPED_BYTES = 250 * 1024 * 1024
+                        # Documented AgentCore limits for a .zip deployment package.
+                        MAX_ZIPPED = 250 * 1024 * 1024
+                        MAX_UNZIPPED = 750 * 1024 * 1024
 
-                        CREDENTIAL_HELP = {
-                            "InvalidClientTokenId": (
-                                "The access key is unknown to AWS. Usual causes: the secret holds a "
-                                "stale or partially pasted key, the key was deleted, the key and "
-                                "secret come from different credential pairs, or a session token is "
-                                "attached to a long-term AKIA key."
-                            ),
-                            "SignatureDoesNotMatch": (
-                                "The access key is valid but the secret key does not match it. "
-                                "Re-paste aws_secret_access_key."
-                            ),
-                            "ExpiredToken": (
-                                "The temporary credentials have expired. Refresh aws_session_token "
-                                "along with the matching key and secret."
-                            ),
-                        }
+                        with zipfile.ZipFile(zip_path) as archive:
+                            names = archive.namelist()
+                            unzipped = sum(info.file_size for info in archive.infolist())
 
-                        sts = boto3.client("sts")
-                        try:
-                            identity = sts.get_caller_identity()
-                        except ClientError as exc:
-                            code = exc.response["Error"]["Code"]
-                            print(f"ERROR: AWS rejected the credentials ({code}).")
-                            if code in CREDENTIAL_HELP:
-                                print(CREDENTIAL_HELP[code])
-                            print(
-                                "These come from the aws_access_key_id, aws_secret_access_key and "
-                                "aws_session_token secrets in Harness."
-                            )
+                        zipped = os.path.getsize(zip_path)
+                        print(f"==> Archive: {len(names)} entries")
+                        print(f"    zipped   : {zipped / 1048576:.1f} MB (limit 250 MB)")
+                        print(f"    unzipped : {unzipped / 1048576:.1f} MB (limit 750 MB)")
+
+                        if entrypoint not in names:
+                            print(f"ERROR: {entrypoint} is not at the root of the archive.")
+                            print("AgentCore runs the entrypoint from the archive root.")
+                            sys.exit(1)
+                        print(f"    entrypoint at root: {entrypoint}")
+
+                        if not any("/" in n and not n.startswith(".") for n in names):
+                            print("ERROR: the archive has no dependency directories.")
+                            print("AgentCore does not install dependencies; they must be in the zip.")
                             sys.exit(1)
 
-                        print(f"Caller: {identity['Arn']}")
-
-                        if identity["Account"] != account_id:
-                            print(
-                                f"ERROR: credentials belong to account {identity['Account']}, "
-                                f"but awsAccountId is {account_id}"
-                            )
+                        if zipped > MAX_ZIPPED:
+                            print("ERROR: archive exceeds the 250 MB zipped limit.")
                             sys.exit(1)
+                        if unzipped > MAX_UNZIPPED:
+                            print("ERROR: archive exceeds the 750 MB unzipped limit.")
+                            sys.exit(1)
+
+                        digest = hashlib.sha256()
+                        with open(zip_path, "rb") as handle:
+                            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                                digest.update(chunk)
+                        sha256 = digest.hexdigest()
+
+                        # A build-scoped key keeps every deploy traceable and lets the
+                        # deploy step point the runtime at this exact artifact.
+                        key = f"{runtime_name}-{build_id}.zip"
+                        if prefix:
+                            key = f"{prefix}/{key}"
 
                         s3 = boto3.client("s3")
                         try:
-                            head = s3.head_object(
-                                Bucket=bucket, Key=key, ExpectedBucketOwner=account_id
-                            )
+                            with open(zip_path, "rb") as handle:
+                                s3.put_object(
+                                    Bucket=bucket,
+                                    Key=key,
+                                    Body=handle.read(),
+                                    ExpectedBucketOwner=account_id,
+                                )
                         except ClientError as exc:
-                            print(f"ERROR: cannot read s3://{bucket}/{key} -- {exc}")
-                            print("Upload the arm64 deployment zip to S3 before running this pipeline.")
+                            print(f"ERROR: upload to s3://{bucket}/{key} failed -- {exc}")
                             sys.exit(1)
 
-                        size = head["ContentLength"]
-                        print(f"Found s3://{bucket}/{key}")
-                        print(f"  size          : {size} bytes")
-                        print(f"  last modified : {head['LastModified']}")
-                        print(f"  etag          : {head['ETag']}")
+                        print(f"==> Uploaded s3://{bucket}/{key}")
+                        print(f"    sha256: {sha256}")
 
-                        if size == 0:
-                            print("ERROR: deployment package is empty.")
-                            sys.exit(1)
-
-                        if size > MAX_ZIPPED_BYTES:
-                            print(f"ERROR: package exceeds the 250 MB zipped limit.")
-                            sys.exit(1)
-
-                        iam_role = os.environ["EXECUTION_ROLE_ARN"]
-                        if not iam_role.startswith("arn:aws:iam::"):
-                            print(f"ERROR: executionRoleArn is not an IAM role ARN: {iam_role}")
-                            sys.exit(1)
-
-                        print("Validation passed.")
+                        with open("/tmp/package-outputs.env", "w", encoding="utf-8") as handle:
+                            handle.write(f"CODE_OBJECT_KEY={key}\n")
+                            handle.write(f"ZIP_SIZE={zipped}\n")
+                            handle.write(f"ZIP_SHA256={sha256}\n")
                         PYEOF
 
-                        python /tmp/validate.py
+                        python /tmp/package.py
+
+                        set -a
+                        . /tmp/package-outputs.env
+                        set +a
+                        export CODE_OBJECT_KEY ZIP_SIZE ZIP_SHA256
+
+                        if [[ ! "$EXECUTION_ROLE_ARN" == arn:aws:iam::* ]]; then
+                          echo "ERROR: executionRoleArn is not an IAM role ARN: $EXECUTION_ROLE_ARN"
+                          exit 1
+                        fi
                 - step:
                     name: Deploy Agent Runtime
                     identifier: deploy_agent
@@ -189,7 +387,7 @@ template:
                         AWS_DEFAULT_REGION: <+pipeline.variables.awsRegion>
                         AWS_ACCOUNT_ID: <+pipeline.variables.awsAccountId>
                         CODE_BUCKET: <+pipeline.variables.codeBucket>
-                        CODE_OBJECT_KEY: <+pipeline.variables.codeObjectKey>
+                        CODE_OBJECT_KEY: <+steps.package_and_upload.output.outputVariables.CODE_OBJECT_KEY>
                         RUNTIME_NAME: <+pipeline.variables.runtimeName>
                         PYTHON_RUNTIME: <+pipeline.variables.pythonRuntime>
                         ENTRYPOINT: <+pipeline.variables.entrypoint>
@@ -512,6 +710,34 @@ template:
 
                         python /tmp/smoke.py
     variables:
+      - name: gitConnectorRef
+        type: String
+        description: Harness Git connector for the repository holding the agent source
+        value: <+input>
+        required: true
+      - name: repoName
+        type: String
+        description: Repository name to clone
+        value: <+input>
+        required: true
+      - name: gitBranch
+        type: String
+        description: Branch to build from
+        default: main
+        value: <+input>
+        required: true
+      - name: agentSubPath
+        type: String
+        description: Path to the agent project inside the repo. Use "." if it is the repo root. The entrypoint and dependency manifest must be at the top of this directory.
+        default: .
+        value: <+input>
+        required: true
+      - name: s3KeyPrefix
+        type: String
+        description: Key prefix under which the built zip is uploaded. The final key is <prefix>/<runtimeName>-<buildId>.zip.
+        default: agents
+        value: <+input>
+        required: false
       - name: awsRegion
         type: String
         description: AWS region holding the S3 bucket and the AgentCore runtime
@@ -525,14 +751,8 @@ template:
         required: true
       - name: codeBucket
         type: String
-        description: S3 bucket holding the pre-built agent deployment zip
+        description: S3 bucket the built deployment zip is uploaded to. Must already exist, and be in awsRegion.
         default: agentcore-zips
-        value: <+input>
-        required: true
-      - name: codeObjectKey
-        type: String
-        description: S3 object key of the deployment zip, built with Linux arm64 wheels
-        default: deployment_package.zip
         value: <+input>
         required: true
       - name: runtimeName
