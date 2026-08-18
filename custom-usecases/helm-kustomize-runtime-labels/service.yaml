@@ -1,0 +1,51 @@
+service:
+  name: helm-kustomize-runtime-labels-svc
+  identifier: helm_kustomize_runtime_labels_svc
+  orgIdentifier: <+input>
+  projectIdentifier: <+input>
+  description: >-
+    Helm K8s service that uses a Kustomize post-renderer to inject labels
+    supplied at pipeline run time, without modifying the Helm chart.
+  serviceDefinition:
+    type: Kubernetes
+    spec:
+      manifests:
+        - manifest:
+            identifier: demo_chart
+            type: HelmChart
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: <+input>        # your GitHub connector
+                  gitFetchType: Branch
+                  folderPath: helm-kustomize-runtime-labels/chart   # path to Chart.yaml in your repo
+                  branch: main
+              chartName: ""
+              helmVersion: V3
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              commandFlags:
+                # --post-renderer-args requires Helm 3.9+ on the delegate.
+                # Each --post-renderer-args value is passed as a positional
+                # argument to post-render.sh (team, cost-center, environment,
+                # in that order) — see delegate-setup/post-render.sh.
+                - commandType: Template
+                  flag: >-
+                    --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+                    --post-renderer-args=<+pipeline.variables.team>
+                    --post-renderer-args=<+pipeline.variables.costCenter>
+                    --post-renderer-args=<+pipeline.variables.environment>
+                - commandType: Install
+                  flag: >-
+                    --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+                    --post-renderer-args=<+pipeline.variables.team>
+                    --post-renderer-args=<+pipeline.variables.costCenter>
+                    --post-renderer-args=<+pipeline.variables.environment>
+                - commandType: Upgrade
+                  flag: >-
+                    --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+                    --post-renderer-args=<+pipeline.variables.team>
+                    --post-renderer-args=<+pipeline.variables.costCenter>
+                    --post-renderer-args=<+pipeline.variables.environment>
+  gitOpsEnabled: false

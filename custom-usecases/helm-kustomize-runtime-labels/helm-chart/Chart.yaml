@@ -1,0 +1,9 @@
+apiVersion: v2
+name: demo-app
+description: >-
+  Minimal demo chart for the runtime-labels Kustomize post-renderer example.
+  This chart intentionally has NO label placeholders — labels are supplied
+  by the caller at pipeline run time and injected externally.
+type: application
+version: 0.1.0
+appVersion: "1.0"
