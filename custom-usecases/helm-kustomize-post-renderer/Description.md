@@ -27,11 +27,11 @@ The core constraints:
 Helm's native `--post-renderer` hook pipes rendered manifests through an external binary before `kubectl apply`. We plug Kustomize's `labels` transformer in here:
 
 ```
-helm template  →  (stdin)  →  post-render.sh  →  kustomize labels transformer  →  (stdout)  →  kubectl apply
+helm template  →  (stdin)  →  kustomize-post-renderer  →  kustomize labels transformer  →  (stdout)  →  kubectl apply
 ```
 
 - **Charts are never touched** — injection happens after rendering
-- **Single source of truth** — all labels live in `post-render.sh` on the delegate
+- **Single source of truth** — all labels live in `kustomize-post-renderer` on the delegate
 - **Persistent** — labels are part of what gets applied to the cluster
 - **Template once** — the `--post-renderer` flag goes in the service manifest; all pipelines using that service inherit it automatically
 
@@ -41,7 +41,7 @@ helm template  →  (stdin)  →  post-render.sh  →  kustomize labels transfor
 
 ### 1. The Post-Renderer Script
 
-`delegate-setup/post-render.sh` is a small wrapper that:
+`delegate-setup/kustomize-post-renderer` is a small wrapper that:
 1. Receives Helm's rendered YAML on **stdin**
 2. Writes a temporary `kustomization.yaml` with the central label set
 3. Runs `kustomize build` and prints the result to **stdout**
@@ -78,11 +78,11 @@ The `--post-renderer` flag is added to the Helm manifest's `commandFlags` for `T
 ```yaml
 commandFlags:
   - commandType: Template
-    flag: --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+    flag: --post-renderer /opt/harness-delegate/client-tools/kustomize-post-renderer
   - commandType: Install
-    flag: --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+    flag: --post-renderer /opt/harness-delegate/client-tools/kustomize-post-renderer
   - commandType: Upgrade
-    flag: --post-renderer /opt/harness-delegate/client-tools/post-render.sh
+    flag: --post-renderer /opt/harness-delegate/client-tools/kustomize-post-renderer
 ```
 
 For complete service YAML, refer to [service.yaml](./service.yaml)
@@ -97,7 +97,7 @@ helm-kustomize-post-renderer/
 ├── pipeline.yaml               # tested Harness pipeline (K8sRollingDeploy + verify step)
 ├── service.yaml                # Harness service with post-renderer command flags
 ├── delegate-setup/
-│   └── post-render.sh          # the post-renderer script — place on your delegate
+│   └── kustomize-post-renderer          # the post-renderer script — place on your delegate
 └── helm-chart/                 # minimal demo chart (no label placeholders — intentional)
     ├── Chart.yaml
     ├── values.yaml
@@ -128,23 +128,23 @@ install -m 0755 /tmp/kustomize /opt/harness-delegate/client-tools/kustomize
 ### Step 2: Place the post-renderer script on the delegate
 
 ```bash
-# copy delegate-setup/post-render.sh from this repo onto the delegate
-kubectl cp delegate-setup/post-render.sh \
-  <delegate-namespace>/<delegate-pod>:/opt/harness-delegate/client-tools/post-render.sh
+# copy delegate-setup/kustomize-post-renderer from this repo onto the delegate
+kubectl cp delegate-setup/kustomize-post-renderer \
+  <delegate-namespace>/<delegate-pod>:/opt/harness-delegate/client-tools/kustomize-post-renderer
 
-chmod +x /opt/harness-delegate/client-tools/post-render.sh
+chmod +x /opt/harness-delegate/client-tools/kustomize-post-renderer
 ```
 
 Or copy the content directly inside the delegate pod:
 
 ```bash
 kubectl exec -it <delegate-pod> -n <delegate-namespace> -- bash -c \
-  'curl -sSL https://raw.githubusercontent.com/harness-community/harnesscd-example-apps/master/custom-usecases/helm-kustomize-post-renderer/delegate-setup/post-render.sh \
-   -o /opt/harness-delegate/client-tools/post-render.sh && \
-   chmod +x /opt/harness-delegate/client-tools/post-render.sh'
+  'curl -sSL https://raw.githubusercontent.com/harness-community/harnesscd-example-apps/master/custom-usecases/helm-kustomize-post-renderer/delegate-setup/kustomize-post-renderer \
+   -o /opt/harness-delegate/client-tools/kustomize-post-renderer && \
+   chmod +x /opt/harness-delegate/client-tools/kustomize-post-renderer'
 ```
 
-> **For production:** bake both `kustomize` and `post-render.sh` into the delegate image or the delegate's `INIT_SCRIPT` environment variable so they survive pod restarts.
+> **For production:** bake both `kustomize` and `kustomize-post-renderer` into the delegate image or the delegate's `INIT_SCRIPT` environment variable so they survive pod restarts.
 
 ### Step 3: Push the Helm chart to your GitHub repo
 
@@ -171,7 +171,7 @@ kubectl create namespace <your-namespace>
 
 ## Customizing Labels
 
-Edit the `pairs` block in `delegate-setup/post-render.sh` — this is the only file you ever change to add, remove, or update labels across all deployments:
+Edit the `pairs` block in `delegate-setup/kustomize-post-renderer` — this is the only file you ever change to add, remove, or update labels across all deployments:
 
 ```yaml
 labels:
@@ -242,6 +242,18 @@ The chart templates had **none** of these labels — they were injected entirely
 | **Label target** | Resources that reference `commonLabels` in templates | **Every resource Helm renders** |
 | **Central management** | Flags in service manifest | Single script on delegate |
 | **Best for** | Charts you own/control | **Any chart, including third-party** |
+
+---
+
+## Future-Proofing: Helm v3 → v4 Migration
+
+The script is saved **without a `.sh` extension** (`kustomize-post-renderer` instead of `kustomize-post-renderer.sh`). This design ensures:
+
+- **Service configuration is version-agnostic** — the `--post-renderer` flag path remains the same whether you're on Helm v3 or v4
+- **Only delegate setup changes** — if Helm changes its binary invocation between versions, you only update the installation script, not every service
+- **Follows Unix conventions** — executable binaries typically have no extension (like `kubectl`, `helm`, `kustomize`)
+
+When you eventually migrate to Helm v4, you'll update the delegate installation, but your service YAML stays unchanged.
 
 ---
 
