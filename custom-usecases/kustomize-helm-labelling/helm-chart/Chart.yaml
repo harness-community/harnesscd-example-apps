@@ -1,0 +1,9 @@
+apiVersion: v2
+name: demo-app
+description: >-
+  Minimal demo chart for kustomize-helm-labelling example.
+  This chart intentionally has NO label placeholders — labels are supplied at
+  pipeline run time and injected by Kustomize post-renderer.
+type: application
+version: 0.1.0
+appVersion: "1.0"

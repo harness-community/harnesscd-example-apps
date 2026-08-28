@@ -1,0 +1,98 @@
+pipeline:
+  name: Kustomize Helm Label Injection - File Store
+  identifier: kustomize_helm_label_filestore
+  projectIdentifier: <+input>
+  orgIdentifier: <+input>
+  tags:
+    example: kustomize-helm-labelling
+    usecase: file-store
+  stages:
+    - stage:
+        name: Deploy with Label Injection
+        identifier: deploy_with_labels
+        type: Deployment
+        variables:
+          - name: labelValue
+            type: String
+            description: "Team label injected onto all K8s resources (e.g. platform-team). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+          - name: costCenter
+            type: String
+            description: "Cost center label (e.g. eng-platform). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: <+input>
+          environment:
+            environmentRef: <+input>
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: <+input>
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Setup Post-Renderer File Store
+                  identifier: setup_post_renderer
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>  # match delegateSelectors on K8sRollingDeploy step below
+                    source:
+                      type: Harness
+                      spec:
+                        file: /setup-post-renderer
+                        # Harness resolves JEXL in script before running on delegate
+                    environmentVariables: []
+                    outputVariables: []
+                    timeout: 10m
+              - step:
+                  type: K8sRollingDeploy
+                  name: Rolling Deploy
+                  identifier: rolling_deploy
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+                    delegateSelectors:
+                      - <+input>  # match delegateSelectors on ShellScript step above
+                  timeout: 15m
+              - step:
+                  type: ShellScript
+                  name: Verify Labels
+                  identifier: verify_labels
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          NAMESPACE="<+infra.namespace>"
+                          echo "=== All resources with labels in namespace: $NAMESPACE ==="
+                          kubectl get all -n "$NAMESPACE" --show-labels
+                          echo ""
+                          echo "=== Deployment label block ==="
+                          kubectl get deploy -n "$NAMESPACE" \
+                            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.labels}{"\n\n"}{end}'
+                    environmentVariables: []
+                    outputVariables: []
+                    timeout: 5m
+            rollbackSteps:
+              - step:
+                  name: Rollback
+                  identifier: rollback
+                  type: K8sRollingRollback
+                  timeout: 10m
+                  spec:
+                    pruningEnabled: false
+          tags: {}
+          failureStrategies:
+            - onFailure:
+                errors:
+                  - AllErrors
+                action:
+                  type: StageRollback
