@@ -1,7 +1,6 @@
-# This template deliberately has NO team/cost-center/environment labels.
-# Those are supplied at pipeline run time and injected by the Kustomize
-# post-renderer at deploy time — proving labels can be caller-configured
-# without editing any chart.
+# This template deliberately has NO team/cost-center labels.
+# Those are supplied at pipeline run time and injected by Kustomize
+# post-renderer — proving labels can be added without editing any chart.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

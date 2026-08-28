@@ -1,0 +1,186 @@
+pipeline:
+  name: Kustomize Helm Label Injection - Inline Script
+  identifier: kustomize_helm_label_inline
+  projectIdentifier: <+input>
+  orgIdentifier: <+input>
+  tags:
+    example: kustomize-helm-labelling
+    usecase: inline-script
+  stages:
+    - stage:
+        name: Deploy with Label Injection
+        identifier: deploy_with_labels
+        type: Deployment
+        variables:
+          - name: labelValue
+            type: String
+            description: "Team label injected onto all K8s resources (e.g. platform-team). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+          - name: costCenter
+            type: String
+            description: "Cost center label (e.g. eng-platform). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: <+input>
+          environment:
+            environmentRef: <+input>
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: <+input>
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Setup Post-Renderer
+                  identifier: setup_post_renderer
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>  # match delegateSelectors on K8sRollingDeploy step below
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          #!/bin/bash
+                          set -euo pipefail
+
+                          TOOLS=/opt/harness-delegate/client-tools
+                          STAGE_ID="<+stage.identifier>"
+                          NAMESPACE="<+infra.namespace>"
+                          _PROVIDED_LABEL="<+stage.variables.labelValue>"
+                          _PROVIDED_COST="<+stage.variables.costCenter>"
+
+                          echo "=== Stage: ${STAGE_ID} | namespace: ${NAMESPACE} ==="
+
+                          # Resolve runtime-label: use provided, retain cluster, or default to unspecified
+                          if [ -n "$_PROVIDED_LABEL" ]; then
+                            LABEL_VALUE="$_PROVIDED_LABEL"
+                            echo "runtime-label: using provided → ${LABEL_VALUE}"
+                          else
+                            LABEL_VALUE=$(kubectl get deploy -n "$NAMESPACE" \
+                              -o jsonpath="{.items[0].metadata.labels['runtime-label']}" 2>/dev/null || true)
+                            if [ -z "$LABEL_VALUE" ]; then
+                              LABEL_VALUE="unspecified"
+                              echo "runtime-label: no prior label found → unspecified"
+                            else
+                              echo "runtime-label: retaining existing → ${LABEL_VALUE}"
+                            fi
+                          fi
+
+                          # Resolve cost-center: same pattern
+                          if [ -n "$_PROVIDED_COST" ]; then
+                            COST_CENTER="$_PROVIDED_COST"
+                            echo "cost-center: using provided → ${COST_CENTER}"
+                          else
+                            COST_CENTER=$(kubectl get deploy -n "$NAMESPACE" \
+                              -o jsonpath="{.items[0].metadata.labels['cost-center']}" 2>/dev/null || true)
+                            if [ -z "$COST_CENTER" ]; then
+                              COST_CENTER="unspecified"
+                              echo "cost-center: no prior label found → unspecified"
+                            else
+                              echo "cost-center: retaining existing → ${COST_CENTER}"
+                            fi
+                          fi
+
+                          echo "=== Final labels: runtime-label=${LABEL_VALUE} | cost-center=${COST_CENTER} ==="
+
+                          # Install kustomize if missing — race-safe: per-process temp dir + cp -f
+                          if ! "$TOOLS/kustomize" version &>/dev/null 2>&1; then
+                            TMP_DIR=$(mktemp -d)
+                            trap 'rm -rf "$TMP_DIR"' EXIT
+                            echo "Installing kustomize v5.4.3..."
+                            curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz \
+                              | tar -xzf - -C "$TMP_DIR"
+                            cp -f "$TMP_DIR/kustomize" "$TOOLS/kustomize"
+                            chmod 0755 "$TOOLS/kustomize"
+                            echo "Installed: $($TOOLS/kustomize version)"
+                          fi
+
+                          # Write stage-specific post-renderer — no .sh extension
+                          SCRIPT_PATH="$TOOLS/post-render-${STAGE_ID}"
+
+                          # Static section — single-quoted heredoc so no variable expansion
+                          cat > "$SCRIPT_PATH" << 'STATIC_EOF'
+                          #!/usr/bin/env bash
+                          set -euo pipefail
+                          KUSTOMIZE=/opt/harness-delegate/client-tools/kustomize
+                          WORK=$(mktemp -d)
+                          trap 'rm -rf "$WORK"' EXIT
+                          cat > "$WORK/all.yaml"
+                          STATIC_EOF
+
+                          # Dynamic section — label values baked in (resolved JEXL vars above)
+                          cat >> "$SCRIPT_PATH" << DYNAMIC_EOF
+                          cat > "\$WORK/kustomization.yaml" << KEOF
+                          apiVersion: kustomize.config.k8s.io/v1beta1
+                          kind: Kustomization
+                          resources:
+                            - all.yaml
+                          labels:
+                            - includeSelectors: false
+                              includeTemplates: true
+                              pairs:
+                                runtime-label: ${LABEL_VALUE}
+                                cost-center: ${COST_CENTER}
+                                managed-by: harness
+                          KEOF
+                          "\$KUSTOMIZE" build "\$WORK"
+                          DYNAMIC_EOF
+
+                          chmod +x "$SCRIPT_PATH"
+                          echo "=== Script ready: $SCRIPT_PATH ==="
+                          cat "$SCRIPT_PATH"
+                    environmentVariables: []
+                    outputVariables: []
+                    timeout: 10m
+              - step:
+                  type: K8sRollingDeploy
+                  name: Rolling Deploy
+                  identifier: rolling_deploy
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+                    delegateSelectors:
+                      - <+input>  # match delegateSelectors on ShellScript step above
+                  timeout: 15m
+              - step:
+                  type: ShellScript
+                  name: Verify Labels
+                  identifier: verify_labels
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          NAMESPACE="<+infra.namespace>"
+                          echo "=== All resources with labels in namespace: $NAMESPACE ==="
+                          kubectl get all -n "$NAMESPACE" --show-labels
+                          echo ""
+                          echo "=== Deployment label block ==="
+                          kubectl get deploy -n "$NAMESPACE" \
+                            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{.metadata.labels}{"\n\n"}{end}'
+                    environmentVariables: []
+                    outputVariables: []
+                    timeout: 5m
+            rollbackSteps:
+              - step:
+                  name: Rollback
+                  identifier: rollback
+                  type: K8sRollingRollback
+                  timeout: 10m
+                  spec:
+                    pruningEnabled: false
+          tags: {}
+          failureStrategies:
+            - onFailure:
+                errors:
+                  - AllErrors
+                action:
+                  type: StageRollback

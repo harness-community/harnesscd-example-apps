@@ -1,0 +1,36 @@
+service:
+  name: kustomize-helm-labels-svc
+  identifier: kustomize_helm_labels_svc
+  orgIdentifier: <+input>
+  projectIdentifier: <+input>
+  description: >-
+    Helm K8s service for Kustomize label injection via post-renderer.
+    The setup step writes a stage-specific post-renderer to the delegate;
+    commandFlags invoke it without --post-renderer-args (labels are baked in).
+  serviceDefinition:
+    type: Kubernetes
+    spec:
+      manifests:
+        - manifest:
+            identifier: demo_chart
+            type: HelmChart
+            spec:
+              store:
+                type: Github
+                spec:
+                  connectorRef: <+input>   # GitHub connector
+                  gitFetchType: Branch
+                  folderPath: kustomize-helm-labelling/helm-chart  # path to Chart.yaml in repo
+                  branch: main
+              chartName: ""
+              helmVersion: V3
+              skipResourceVersioning: false
+              enableDeclarativeRollback: false
+              commandFlags:
+                - commandType: Template
+                  flag: "--post-renderer /opt/harness-delegate/client-tools/post-render-<+stage.identifier>"
+                - commandType: Install
+                  flag: "--post-renderer /opt/harness-delegate/client-tools/post-render-<+stage.identifier>"
+                - commandType: Upgrade
+                  flag: "--post-renderer /opt/harness-delegate/client-tools/post-render-<+stage.identifier>"
+      gitOpsEnabled: false

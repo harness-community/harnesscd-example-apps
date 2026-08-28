@@ -1,0 +1,89 @@
+#!/bin/bash
+set -euo pipefail
+
+TOOLS=/opt/harness-delegate/client-tools
+STAGE_ID="<+stage.identifier>"
+NAMESPACE="<+infra.namespace>"
+_PROVIDED_LABEL="<+stage.variables.labelValue>"
+_PROVIDED_COST="<+stage.variables.costCenter>"
+
+echo "=== Stage: ${STAGE_ID} | namespace: ${NAMESPACE} ==="
+
+# Resolve runtime-label: use provided, else retain from cluster, or default to unspecified
+if [ -n "$_PROVIDED_LABEL" ]; then
+  LABEL_VALUE="$_PROVIDED_LABEL"
+  echo "runtime-label: using provided → ${LABEL_VALUE}"
+else
+  LABEL_VALUE=$(kubectl get deploy -n "$NAMESPACE" \
+    -o jsonpath="{.items[0].metadata.labels['runtime-label']}" 2>/dev/null || true)
+  if [ -z "$LABEL_VALUE" ]; then
+    LABEL_VALUE="unspecified"
+    echo "runtime-label: no prior label found → unspecified"
+  else
+    echo "runtime-label: retaining existing → ${LABEL_VALUE}"
+  fi
+fi
+
+# Resolve cost-center: same pattern
+if [ -n "$_PROVIDED_COST" ]; then
+  COST_CENTER="$_PROVIDED_COST"
+  echo "cost-center: using provided → ${COST_CENTER}"
+else
+  COST_CENTER=$(kubectl get deploy -n "$NAMESPACE" \
+    -o jsonpath="{.items[0].metadata.labels['cost-center']}" 2>/dev/null || true)
+  if [ -z "$COST_CENTER" ]; then
+    COST_CENTER="unspecified"
+    echo "cost-center: no prior label found → unspecified"
+  else
+    echo "cost-center: retaining existing → ${COST_CENTER}"
+  fi
+fi
+
+echo "=== Final labels: runtime-label=${LABEL_VALUE} | cost-center=${COST_CENTER} ==="
+
+# Install kustomize if missing — race-safe: per-process temp dir + cp -f
+if ! "$TOOLS/kustomize" version &>/dev/null 2>&1; then
+  TMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TMP_DIR"' EXIT
+  echo "Installing kustomize v5.4.3..."
+  curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz \
+    | tar -xzf - -C "$TMP_DIR"
+  cp -f "$TMP_DIR/kustomize" "$TOOLS/kustomize"
+  chmod 0755 "$TOOLS/kustomize"
+  echo "Installed: $($TOOLS/kustomize version)"
+fi
+
+# Write stage-specific post-renderer — no .sh extension
+SCRIPT_PATH="$TOOLS/post-render-${STAGE_ID}"
+
+# Static section — single-quoted heredoc so no variable expansion
+cat > "$SCRIPT_PATH" << 'STATIC_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+KUSTOMIZE=/opt/harness-delegate/client-tools/kustomize
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+cat > "$WORK/all.yaml"
+STATIC_EOF
+
+# Dynamic section — label values baked in (resolved JEXL vars above)
+cat >> "$SCRIPT_PATH" << DYNAMIC_EOF
+cat > "\$WORK/kustomization.yaml" << KEOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - all.yaml
+labels:
+  - includeSelectors: false
+    includeTemplates: true
+    pairs:
+      runtime-label: ${LABEL_VALUE}
+      cost-center: ${COST_CENTER}
+      managed-by: harness
+KEOF
+"\$KUSTOMIZE" build "\$WORK"
+DYNAMIC_EOF
+
+chmod +x "$SCRIPT_PATH"
+echo "=== Script ready: $SCRIPT_PATH ==="
+cat "$SCRIPT_PATH"
