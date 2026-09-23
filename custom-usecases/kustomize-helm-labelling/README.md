@@ -53,15 +53,16 @@ helm template → stdin → post-render-<stage> → kustomize labels transformer
 
 ---
 
-## Two Usecases
+## Three Usecases
 
-| | [Usecase 1: Inline Script](./usecase-1-inline-script/) | [Usecase 2: File Store](./usecase-2-file-store/) |
-|---|---|---|
-| **Setup script location** | Inline inside pipeline step | Harness File Store — update once, all pipelines pick it up |
-| **Label injection** | JEXL resolved in inline script, labels baked in | JEXL resolved in File Store script, labels baked in |
-| **`--post-renderer-args`** | Not needed | Not needed |
-| **Parallel stage safety** | Stage-specific script path + race-safe kustomize install | Same |
-| **Best for** | Getting started, self-contained pipelines | Production, shared pipelines, centralised script management |
+| | [Usecase 1: Inline Script](./usecase-1-inline-script/) | [Usecase 2: File Store](./usecase-2-file-store/) | [Usecase 3: File Store + Cleanup](./usecase-3-cleanup/) |
+|---|---|---|---|
+| **Setup script location** | Inline inside pipeline step | Harness File Store — update once, all pipelines pick it up | Harness File Store (same as Usecase 2) |
+| **Label injection** | JEXL resolved in inline script, labels baked in | JEXL resolved in File Store script, labels baked in | Same as Usecase 2 |
+| **Post-deploy cleanup** | Script stays on delegate | Script stays on delegate | Script removed from delegate after deployment |
+| **Stage count** | 1 | 1 | 2 (Deploy + Custom cleanup stage) |
+| **Parallel stage safety** | Stage-specific script path + race-safe kustomize install | Same | Same |
+| **Best for** | Getting started, self-contained pipelines | Production, shared pipelines, centralised script management | Production pipelines where delegate filesystem hygiene matters |
 
 ---
 
@@ -154,12 +155,15 @@ kustomize-helm-labelling/
 │   ├── README.md
 │   ├── pipeline.yaml
 │   └── service.yaml
-└── usecase-2-file-store/              ← setup script in Harness File Store
+├── usecase-2-file-store/              ← setup script in Harness File Store
+│   ├── README.md
+│   ├── pipeline.yaml
+│   ├── service.yaml
+│   └── file-store/
+│       └── setup-post-renderer        ← paste content into Harness File Store
+└── usecase-3-cleanup/                 ← File Store + automatic delegate script cleanup
     ├── README.md
-    ├── pipeline.yaml
-    ├── service.yaml
-    └── file-store/
-        └── setup-post-renderer        ← paste content into Harness File Store
+    └── pipeline.yaml
 ```
 
 ---

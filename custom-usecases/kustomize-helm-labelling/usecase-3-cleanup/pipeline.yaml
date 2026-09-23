@@ -1,0 +1,129 @@
+pipeline:
+  name: Kustomize Helm Label Injection - With Script Cleanup
+  identifier: kustomize_helm_label_filestore_cleanup
+  projectIdentifier: <+input>
+  orgIdentifier: <+input>
+  tags:
+    example: kustomize-helm-labelling
+    usecase: cleanup
+  stages:
+    - stage:
+        name: Deploy with Label Injection
+        identifier: deploy_with_labels
+        type: Deployment
+        variables:
+          - name: labelValue
+            type: String
+            description: "Team label injected onto all K8s resources (e.g. platform-team). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+          - name: costCenter
+            type: String
+            description: "Cost center label (e.g. eng-platform). Leave blank to retain existing cluster label."
+            value: <+input>.default("")
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: <+input>
+          environment:
+            environmentRef: <+input>
+            deployToAll: false
+            infrastructureDefinitions:
+              - identifier: <+input>
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Setup Post-Renderer from File Store
+                  identifier: setup_post_renderer
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>
+                      # IMPORTANT: Must match the delegateSelectors on K8sRollingDeploy below.
+                      # Both steps must run on the same delegate pod — the setup step writes the
+                      # post-renderer script to local disk, and K8sRollingDeploy reads it from there.
+                      # If they land on different pods, K8sRollingDeploy will not find the script.
+                    source:
+                      type: Harness
+                      spec:
+                        file: /setup-post-renderer
+                    environmentVariables: []
+                    outputVariables: []
+                    timeout: 10m
+              - step:
+                  type: K8sRollingDeploy
+                  name: Rolling Deploy
+                  identifier: rolling_deploy
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+                    delegateSelectors:
+                      - <+input>
+                      # IMPORTANT: Must match the delegateSelectors on ShellScript step above.
+                      # K8sRollingDeploy waits for pod readiness (steady state) before completing,
+                      # so downstream stages only run once the deployment is confirmed healthy.
+                  timeout: 15m
+            rollbackSteps:
+              - step:
+                  name: Rollback
+                  identifier: rollback
+                  type: K8sRollingRollback
+                  timeout: 10m
+                  spec:
+                    pruningEnabled: false
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+    - stage:
+        name: Cleanup Post-Renderer Script
+        identifier: cleanup_post_renderer_script
+        type: Custom
+        # Custom stage type is required for post-deploy cleanup steps.
+        # Deployment stage type does not support finallySteps.
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Remove Post-Renderer Script
+                  identifier: remove_post_renderer_script
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors:
+                      - <+input>
+                      # Must match the same delegate used in the Deploy stage above.
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          # Stage identifier drives the script filename written by setup-post-renderer.sh
+                          # If you rename the deploy stage, update this path to match.
+                          SCRIPT="/opt/harness-delegate/client-tools/post-render-deploy_with_labels.sh"
+
+                          if [ -f "$SCRIPT" ]; then
+                            rm -f "$SCRIPT"
+                            echo "Removed: $SCRIPT"
+                          else
+                            echo "Not found (already clean): $SCRIPT"
+                          fi
+
+                          echo ""
+                          echo "Remaining post-render scripts on delegate:"
+                          ls /opt/harness-delegate/client-tools/ | grep post-render || echo "  none"
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 2m
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: Ignore
+                # Ignore cleanup failures so a missing script doesn't block the pipeline.
