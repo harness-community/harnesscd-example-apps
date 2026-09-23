@@ -44,12 +44,18 @@ Stage 1: Deploy with Label Injection (Deployment stage)
     Waits for pod readiness (steady state) before completing
         │
         ▼
-Stage 2: Cleanup Post-Renderer Script (Custom stage)
+Stage 2: Approve Cleanup (Approval stage)
+  Pauses for manual confirmation — verify labels are applied correctly
+  before allowing cleanup to proceed
+        │
+        ▼
+Stage 3: Cleanup Post-Renderer Script (Custom stage)
   ShellScript — removes post-render-deploy_with_labels.sh from delegate
 ```
 
-The K8sRollingDeploy step waits for pods to reach ready state before it completes — so the
-cleanup stage only runs after the deployment is confirmed healthy. No extra checks needed.
+K8sRollingDeploy waits for pods to reach ready state before it completes, so the approval gate
+only appears after a healthy deployment. The approval gives you a window to inspect the cluster
+before the script is removed.
 
 ---
 
@@ -81,7 +87,8 @@ delegateSelectors:
 | | Usecase 2 (File Store) | Usecase 3 (File Store + Cleanup) |
 |---|---|---|
 | **Post-deploy** | Script stays on delegate | Script removed from delegate |
-| **Stage count** | 1 (Deployment) | 2 (Deployment + Custom) |
+| **Stage count** | 1 (Deployment) | 3 (Deployment + Approval + Custom) |
+| **Approval gate** | — | Between deploy and cleanup — verify labels before script is removed |
 | **Custom stage** | — | Required — Deployment stage type does not support `finallySteps` |
 | **Cleanup failure** | — | Ignored by default — a missing script should not fail the pipeline |
 | **Everything else** | — | Identical |
