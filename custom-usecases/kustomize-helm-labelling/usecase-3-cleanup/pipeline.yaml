@@ -80,6 +80,31 @@ pipeline:
               action:
                 type: StageRollback
     - stage:
+        name: Approve Cleanup
+        identifier: approve_cleanup
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Approve
+                  identifier: approve
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Deployment has reached steady state. Verify the labels are correctly applied,
+                      then approve to remove the post-renderer script from the delegate.
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - _project_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
+    - stage:
         name: Cleanup Post-Renderer Script
         identifier: cleanup_post_renderer_script
         type: Custom

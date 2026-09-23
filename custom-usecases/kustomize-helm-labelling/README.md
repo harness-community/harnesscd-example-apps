@@ -60,7 +60,7 @@ helm template → stdin → post-render-<stage> → kustomize labels transformer
 | **Setup script location** | Inline inside pipeline step | Harness File Store — update once, all pipelines pick it up | Harness File Store (same as Usecase 2) |
 | **Label injection** | JEXL resolved in inline script, labels baked in | JEXL resolved in File Store script, labels baked in | Same as Usecase 2 |
 | **Post-deploy cleanup** | Script stays on delegate | Script stays on delegate | Script removed from delegate after deployment |
-| **Stage count** | 1 | 1 | 2 (Deploy + Custom cleanup stage) |
+| **Stage count** | 1 | 1 | 3 (Deploy + Approval + Custom cleanup stage) |
 | **Parallel stage safety** | Stage-specific script path + race-safe kustomize install | Same | Same |
 | **Best for** | Getting started, self-contained pipelines | Production, shared pipelines, centralised script management | Production pipelines where delegate filesystem hygiene matters |
 
